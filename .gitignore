@@ -8,3 +8,8 @@ node_modules/
 *.pem
 *.key
 coverage/
+.agents/
+.wrangler/
+dist/
+worker-configuration.d.ts
+skills-lock.json

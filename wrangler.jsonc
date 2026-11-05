@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fleteruta",
+  "main": "cloud/worker.mjs",
+  "compatibility_date": "2026-11-05",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "404-page"
+  },
+  "build": {
+    "command": "node scripts/build.mjs"
+  },
+  "vars": {
+    "SUPABASE_URL": "https://tuqdutglubkmuxumjqyv.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pPOteBdBgMfRl4G5FU8ugA_Wh2Clyih"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

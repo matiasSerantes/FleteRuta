@@ -1,7 +1,11 @@
 import {blocks,mapsURL,addressSearch,localAddressResults,distanceKm} from './core.mjs';
 import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
-const $=id=>document.getElementById(id),KEY='fleteruta-test-v1';
+import {mountCloudStore} from './cloud-sync.js';
+const $=id=>document.getElementById(id);
+const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
+const localHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+const KEY=boot.backend==='supabase'&&boot.userId?'fleteruta-user-'+boot.userId:localHost?'fleteruta-test-v1':'fleteruta-cloud-unavailable';
 let stops=[],origin=null,busy=false,map,markers,line,tiles,editing=null,lastSearch=0,cache={},focusedId=null,manualOrder=false;
 const markerById=new Map();
 let trip=null;
@@ -144,4 +148,8 @@ trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
   changed('Entrega realizada. Continuamos con la siguiente parada de tu recorrido.');
  }
 });
-initMap();render();searchHint();if(stops.length)fit();task(locate);
+initMap();render();searchHint();if(stops.length)fit();
+const cloud=mountCloudStore({enabled:boot.backend==='supabase',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
+ applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=snapshot.stops;manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}
+});
+await cloud.initialize();task(locate);

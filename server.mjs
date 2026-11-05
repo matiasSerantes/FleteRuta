@@ -15,7 +15,7 @@ export async function createApp({authPath=path.join(root,'.private','auth.json')
  const dummySalt=randomBytes(16).toString('hex');
  const publicFiles=new Map([['/login','login.html'],['/login.js','login.js'],['/app.css','app.css']]);
  const privateFiles=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.mjs','core.mjs'],['/estado-proyecto.html','estado-proyecto.html']]);
- for(const name of ['trip.js','notifications-sw.js','planner.mjs','estado-proyecto.js','INICIAR.md','README.md','VERIFICACION.md'])privateFiles.set('/'+name,name);
+ for(const name of ['cloud-sync.js','trip.js','notifications-sw.js','planner.mjs','estado-proyecto.js','INICIAR.md','README.md','VERIFICACION.md'])privateFiles.set('/'+name,name);
  for(const name of ['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'])privateFiles.set('/vendor/leaflet/'+name,'vendor/leaflet/'+name);
  const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'};
  const server=http.createServer(async(req,res)=>{
