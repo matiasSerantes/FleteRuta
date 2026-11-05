@@ -1,0 +1,13 @@
+{
+  "name": "fleteruta",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test *.test.mjs"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.4"
+  }
+}
