@@ -13,3 +13,4 @@ coverage/
 dist/
 worker-configuration.d.ts
 skills-lock.json
+supabase/.temp/
