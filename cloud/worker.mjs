@@ -1,5 +1,5 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/notifications-sw.js','/estado-proyecto.js']);
-const PRIVATE=new Set(['/','/index.html','/estado-proyecto.html']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/notifications-sw.js','/estado-proyecto.js']);
+const PRIVATE=new Set(['/','/index.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
 const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};
 export function validateRoute(body){
@@ -29,8 +29,9 @@ export async function handle(request,env,upstream=fetch){
   const member=await api('/rest/v1/fleteruta_members?'+new URLSearchParams({user_id:'eq.'+user.id,enabled:'eq.true',select:'user_id'}),{token});
   if(!member.ok)throw Error('membership_unavailable');
   if(!(await member.json()).length)return null;
-  return {user,token};
+  const access=await accessStatus(token);return {user,token,isAdmin:access.is_admin,mfaRequired:access.mfa_required};
  }
+ async function accessStatus(token){const r=await api('/rest/v1/rpc/fleteruta_access_status',{token,method:'POST',body:{}});if(!r.ok)throw Error('access_status_unavailable');return r.json();}
  async function bodyJSON(limit){
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Object.assign(Error('Se requiere JSON.'),{status:415});
   const reader=request.body?.getReader();if(!reader)return {};let size=0,chunks=[];
@@ -48,16 +49,38 @@ export async function handle(request,env,upstream=fetch){
    const session=await response.json(),member=await api('/rest/v1/fleteruta_members?'+new URLSearchParams({user_id:'eq.'+session.user.id,enabled:'eq.true',select:'user_id'}),{token:session.access_token});
    if(!member.ok)throw Error('membership_unavailable');
    if(!(await member.json()).length){await api('/auth/v1/logout?scope=local',{token:session.access_token,method:'POST'});return json({error:'Tu cuenta no está habilitada para FleteRuta.'},403);}
-   setTokens(session);return json({ok:true});
+   const access=await accessStatus(session.access_token);setTokens(session);return json({ok:true,mfaRequired:access.mfa_required});
   }
   if(url.pathname==='/auth/logout'&&request.method==='POST'){
    clearTokens();if(cookies.fr_access){const r=await api('/auth/v1/logout?scope=local',{token:cookies.fr_access,method:'POST'});if(!r.ok&&r.status!==401&&r.status!==403)return json({error:'Sesión cerrada en este navegador; no se pudo revocar en el servidor.'},502);}return json({ok:true});
   }
   if(url.pathname==='/auth/status'&&request.method==='GET'){
-   const auth=await authenticate();return json({configured:true,backend:'supabase',authenticated:!!auth,...(auth?{userId:auth.user.id,username:auth.user.email}:{})});
+   const auth=await authenticate();return json({configured:true,backend:'supabase',authenticated:!!auth,...(auth?{userId:auth.user.id,username:auth.user.email,isAdmin:auth.isAdmin,mfaRequired:auth.mfaRequired}:{})});
+  }
+  if(url.pathname==='/auth/mfa'&&request.method==='POST'){
+   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión para verificar el código.'},401);
+   const body=await bodyJSON(4096);if(!/^\d{6}$/.test(body.code||''))return json({error:'Ingresá el código de 6 dígitos.'},400);
+   const factor=auth.user.factors?.find(f=>f.factor_type==='totp'&&f.status==='verified');if(!factor||!/^[a-f0-9-]{36}$/i.test(factor.id))return json({error:'No se encontró un autenticador configurado.'},400);
+   const challenge=await api(`/auth/v1/factors/${factor.id}/challenge`,{token:auth.token,method:'POST',body:{}});if(!challenge.ok)return json({error:'No se pudo iniciar la verificación.'},400);
+   const challengeData=await challenge.json();const verified=await api(`/auth/v1/factors/${factor.id}/verify`,{token:auth.token,method:'POST',body:{challenge_id:challengeData.id,code:body.code}});
+   if(!verified.ok)return json({error:'Código incorrecto o vencido. Probá con el código actual de tu autenticador.'},400);
+   setTokens(await verified.json());return json({ok:true});
+  }
+  if(url.pathname.startsWith('/api/admin/')){
+   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión.'},401);if(!auth.isAdmin||auth.mfaRequired)return json({error:'Acceso exclusivo del administrador. Completá la verificación de tu cuenta.'},403);
+   let route,body;
+   if(url.pathname==='/api/admin/users'&&request.method==='GET'){
+    const search=url.searchParams.get('search')||'',offset=Number(url.searchParams.get('offset')||0);if(search.length>120||!Number.isInteger(offset)||offset<0||offset>100000)return json({error:'Filtro inválido.'},400);
+    route='fleteruta_admin_users';body={p_search:search,p_offset:offset};
+   }else if(url.pathname==='/api/admin/access'&&request.method==='PUT'){
+    const input=await bodyJSON(4096);if(!/^[a-f0-9-]{36}$/i.test(input.userId||'')||typeof input.fleteruta!=='boolean'||typeof input.hidrotrack!=='boolean')return json({error:'Elegí una cuenta y sus aplicaciones.'},400);
+    route='fleteruta_set_access';body={p_user:input.userId,p_fleteruta:input.fleteruta,p_hidrotrack:input.hidrotrack};
+   }else return json({error:'No encontrado.'},404);
+   const r=await api('/rest/v1/rpc/'+route,{token:auth.token,method:'POST',body});
+   if(!r.ok){const error=await r.json();return json({error:error.code==='42501'?'Acceso denegado.':error.message||'No se pudo actualizar el acceso.'},error.code==='42501'?403:422);}return json(await r.json());
   }
   if(url.pathname==='/api/route'){
-   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión en FleteRuta.'},401);
+   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión en FleteRuta.'},401);if(auth.mfaRequired)return json({error:'Completá la verificación de tu cuenta.'},403);
    if(request.method==='GET'){
     const r=await api('/rest/v1/fleteruta_routes?'+new URLSearchParams({user_id:'eq.'+auth.user.id,select:'stops,round_trip,manual_order,revision,updated_at'}),{token:auth.token});
     if(!r.ok)throw Error('route_read_failed');const routes=await r.json();return json({route:routes[0]||null});
@@ -71,9 +94,9 @@ export async function handle(request,env,upstream=fetch){
    return json({error:'Método no permitido.'},405);
   }
   if(!['GET','HEAD'].includes(request.method))return json({error:'No encontrado.'},404);
-  if(PRIVATE.has(url.pathname)&&!await authenticate())return redirect('/login');
+  if(PRIVATE.has(url.pathname)){const auth=await authenticate();if(!auth||auth.mfaRequired)return redirect('/login');if((url.pathname==='/admin'||url.pathname==='/admin.html')&&!auth.isAdmin)return json({error:'Acceso exclusivo del administrador.'},403);}
   if(!PRIVATE.has(url.pathname)&&!PUBLIC.has(url.pathname)&&!LIBRARY.has(url.pathname))return json({error:'No encontrado.'},404);
-  const assetURL=new URL(url);if(url.pathname==='/')assetURL.pathname='/index.html';if(url.pathname==='/login')assetURL.pathname='/login.html';
+  const assetURL=new URL(url);if(url.pathname==='/')assetURL.pathname='/index.html';if(url.pathname==='/login')assetURL.pathname='/login.html';if(url.pathname==='/admin')assetURL.pathname='/admin.html';
   const asset=await env.ASSETS.fetch(new Request(assetURL,{method:request.method}));
   headers.set('Content-Type',MIME[assetURL.pathname.split('.').at(-1)]||'application/octet-stream');
   return new Response(asset.body,{status:asset.status,headers});

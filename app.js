@@ -4,6 +4,8 @@ import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
 const $=id=>document.getElementById(id);
 const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
+if(boot.mfaRequired)location.replace('/login');
+if(boot.isAdmin&&document.getElementById('admin-link'))document.getElementById('admin-link').hidden=false;
 const localHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
 const KEY=boot.backend==='supabase'&&boot.userId?'fleteruta-user-'+boot.userId:localHost?'fleteruta-test-v1':'fleteruta-cloud-unavailable';
 let stops=[],origin=null,busy=false,map,markers,line,tiles,editing=null,lastSearch=0,cache={},focusedId=null,manualOrder=false;

@@ -2,13 +2,18 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {handle} from './worker.mjs';
 const origin='https://fleteruta.example',id='10000000-0000-0000-0000-000000000001';
-function fixture({member=true,expired=false}={}){
+function fixture({member=true,expired=false,admin=false,mfa=false}={}){
  const calls=[];let revision=0,stops=[];
  const env={SUPABASE_URL:'https://supabase.example',SUPABASE_PUBLISHABLE_KEY:'public-test-key',ASSETS:{fetch:async()=>new Response('asset')}};
  const upstream=async(url,options)=>{
   calls.push({url,options});const path=new URL(url).pathname;
   if(path==='/auth/v1/token')return Response.json({access_token:'access-test',refresh_token:'refresh-test',expires_in:3600,user:{id}});
-  if(path==='/auth/v1/user')return expired&&options.headers.Authorization==='Bearer expired'?Response.json({error:'expired'},{status:401}):Response.json({id,email:'test@example.com'});
+  if(path==='/auth/v1/user')return expired&&options.headers.Authorization==='Bearer expired'?Response.json({error:'expired'},{status:401}):Response.json({id,email:'test@example.com',factors:[{id,factor_type:'totp',status:'verified'}]});
+  if(path==='/rest/v1/rpc/fleteruta_access_status')return Response.json({is_admin:admin&&!mfa,mfa_required:mfa});
+  if(path==='/rest/v1/rpc/fleteruta_admin_users')return Response.json({users:[],total:0});
+  if(path==='/rest/v1/rpc/fleteruta_set_access')return Response.json({ok:true});
+  if(path.endsWith('/challenge'))return Response.json({id:'challenge-test'});
+  if(path.endsWith('/verify'))return Response.json({access_token:'elevated-access',refresh_token:'elevated-refresh',expires_in:3600});
   if(path==='/rest/v1/fleteruta_members')return Response.json(member?[{user_id:id}]:[]);
   if(path==='/auth/v1/logout')return new Response(null,{status:204});
   if(path==='/rest/v1/fleteruta_routes')return Response.json(revision?[{stops,round_trip:false,manual_order:true,revision}]:[]);
@@ -25,7 +30,7 @@ test('Worker requiere sesión para la aplicación, y no expone fuentes privadas 
 });
 test('cuenta habilitada recibe cookies privadas, sin tokens en JSON',async()=>{
  const {request}=fixture();const response=await request('/auth/login',{method:'POST',body:{username:'test@example.com',password:'fake-password'}});assert.equal(response.status,200);
- const cookies=response.headers.getSetCookie();assert.equal(cookies.length,2);assert.ok(cookies.every(c=>c.includes('HttpOnly')&&c.includes('Secure')&&c.includes('SameSite=Strict')));assert.deepEqual(await response.json(),{ok:true});
+ const cookies=response.headers.getSetCookie();assert.equal(cookies.length,2);assert.ok(cookies.every(c=>c.includes('HttpOnly')&&c.includes('Secure')&&c.includes('SameSite=Strict')));assert.deepEqual(await response.json(),{ok:true,mfaRequired:false});
 });
 test('una cuenta de HidroTrack sin membresía no entra ni obtiene cookies',async()=>{
  const {request,calls}=fixture({member:false});const response=await request('/auth/login',{method:'POST',body:{username:'test@example.com',password:'fake-password'}});assert.equal(response.status,403);assert.equal(response.headers.get('Set-Cookie'),null);assert.ok(calls.some(c=>c.url.includes('logout?scope=local')));
@@ -43,4 +48,18 @@ test('renueva sesión vencida y logout revoca solo la sesión de FleteRuta',asyn
  const {request,calls}=fixture({expired:true}),cookie='fr_access=expired; fr_refresh=refresh-test';
  const status=await request('/auth/status',{cookie});assert.equal((await status.json()).authenticated,true);assert.equal(status.headers.getSetCookie().length,2);
  const logout=await request('/auth/logout',{method:'POST',body:{},cookie});assert.equal(logout.status,200);assert.ok(calls.some(c=>c.url.endsWith('logout?scope=local')));assert.ok(logout.headers.get('Set-Cookie').includes('Max-Age=0'));
+});
+test('panel y API de accesos requieren administrador, incluso con sesión válida',async()=>{
+ const normal=fixture(),admin=fixture({admin:true}),cookie='fr_access=access-test';
+ assert.equal((await normal.request('/admin')).status,303);assert.equal((await normal.request('/admin',{cookie})).status,403);
+ assert.equal((await normal.request('/api/admin/users',{cookie})).status,403);assert.equal((await admin.request('/admin',{cookie})).status,200);
+ assert.equal((await admin.request('/api/admin/users',{cookie})).status,200);
+ const body={userId:id,fleteruta:true,hidrotrack:false};assert.equal((await normal.request('/api/admin/access',{method:'PUT',cookie,body})).status,403);
+ assert.equal((await admin.request('/api/admin/access',{method:'PUT',cookie,body})).status,200);
+});
+test('MFA pendiente bloquea panel y datos; verificar solo devuelve cookies privadas',async()=>{
+ const {request,calls}=fixture({admin:true,mfa:true}),cookie='fr_access=access-test';
+ assert.equal((await request('/admin',{cookie})).status,303);assert.equal((await request('/api/admin/users',{cookie})).status,403);assert.equal((await request('/api/route',{cookie})).status,403);
+ assert.equal((await request('/auth/mfa',{method:'POST',cookie,body:{code:'abc'}})).status,400);
+ const verified=await request('/auth/mfa',{method:'POST',cookie,body:{code:'123456'}});assert.equal(verified.status,200);assert.deepEqual(await verified.json(),{ok:true});assert.ok(verified.headers.getSetCookie().every(c=>c.includes('HttpOnly')));assert.ok(calls.some(c=>c.url.endsWith('/verify')));
 });

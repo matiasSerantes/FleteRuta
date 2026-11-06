@@ -4,7 +4,7 @@ Fecha: 4 de noviembre de 2026.
 
 ## Comprobaciones de esta versión
 
-- `npm test`: 35 pruebas aprobadas. Detalle de integración y comprobaciones reales de Supabase: `docs/INTEGRACION_SUPABASE.md`.
+- `npm test`: 40 pruebas aprobadas. Integración: `docs/INTEGRACION_SUPABASE.md`. Administración por aplicación, protección y MFA: `docs/USUARIOS_Y_ACCESOS.md`.
 - Seguimiento: permanencia cerca, precisión, antigüedad, velocidad, aviso único, posposición y cambio de destino, incluyendo dos entregas en el mismo lugar.
 - Flujo del cuadro de llegada con DOM: notificación mediante service worker simulado, Todavía no sin completar, confirmación de una sola entrega, enlace con únicamente el próximo destino, selección de Waze y finalización de la última entrega sin abrir un destino inexistente. Sin validación de notificaciones/GPS reales en un celular ni de navegación del sistema operativo.
 - La prueba del formulario también verifica Subir/Bajar: límites deshabilitados, numeración sincronizada, navegación en la secuencia elegida, modo manual persistido, ausencia de reoptimización automática y regreso explícito al orden automático.
