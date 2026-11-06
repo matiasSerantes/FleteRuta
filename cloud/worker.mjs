@@ -41,6 +41,15 @@ export async function handle(request,env,upstream=fetch){
  try{
   if(!env.SUPABASE_URL||!env.SUPABASE_PUBLISHABLE_KEY)return json({error:'Falta configurar Supabase.'},503);
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('Origin')!==url.origin)return json({error:'Origen no permitido.'},403);
+  if(url.pathname==='/auth/signup'&&request.method==='POST'){
+   const body=await bodyJSON(4096),email=typeof body.email==='string'?body.email.trim().toLowerCase():'',name=typeof body.fullName==='string'?body.fullName.trim():'';
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||name.length<2||name.length>100||typeof body.password!=='string'||body.password.length<12||body.password.length>128)return json({error:'Ingresá nombre, correo válido y una contraseña de 12 a 128 caracteres.'},400);
+   const response=await api('/auth/v1/signup?'+new URLSearchParams({redirect_to:url.origin+'/login'}),{method:'POST',body:{email,password:body.password,data:{full_name:name,signup_app:'fleteruta'}}});
+   if(!response.ok){const error=await response.json();if(error.code==='user_already_exists')return json({ok:true,pendingApproval:true});return json({error:response.status===429?'Se alcanzó el límite de solicitudes. Esperá unos minutos antes de reintentar.':error.code==='weak_password'?'Elegí una contraseña más segura.':'No se pudo completar el registro. Revisá el correo o probá más tarde.'},response.status===429?429:400);}
+   // A successful signup never grants app membership or returns any Auth session.
+   const created=await response.json();if(created.access_token)await api('/auth/v1/logout?scope=local',{token:created.access_token,method:'POST'});
+   return json({ok:true,pendingApproval:true});
+  }
   if(url.pathname==='/auth/login'&&request.method==='POST'){
    const body=await bodyJSON(4096),email=body.email||body.username;
    if(typeof email!=='string'||!email.includes('@')||email.length>254||typeof body.password!=='string'||body.password.length>128)return json({error:'Ingresá correo y contraseña.'},400);

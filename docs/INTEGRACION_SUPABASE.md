@@ -14,7 +14,7 @@ Las políticas RLS exigen propiedad y membresía activa. El Worker usa la clave 
 
 ## Login y datos
 
-En Cloudflare se ingresa con correo y contraseña de la cuenta Supabase autorizada. No hay registro público ni creación de usuarios de HidroTrack. La contraseña local de TEST 0.3 no se copia a Supabase. Inicialmente, solo la cuenta de administración de HidroTrack tiene acceso a FleteRuta.
+En Cloudflare se ingresa con correo y contraseña de la cuenta Supabase autorizada. El botón Crear cuenta permite registrarse, pero no habilita las aplicaciones: se requiere confirmación por correo y autorización del administrador. Ver `docs/REGISTRO.md`. No se asignan empresas ni licencias de HidroTrack. La contraseña local de TEST 0.3 no se copia a Supabase. Inicialmente, solo la cuenta de administración de HidroTrack tiene acceso a FleteRuta.
 
 Los tokens viajan en cookies HttpOnly, SameSite=Strict y Secure en HTTPS. Se renueva el token cuando vence. El logout solicita revocar solamente la sesión actual, sin cerrar las otras sesiones de HidroTrack. Las rutas privadas y la API comprueban cuenta y membresía.
 

@@ -2,11 +2,12 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {handle} from './worker.mjs';
 const origin='https://fleteruta.example',id='10000000-0000-0000-0000-000000000001';
-function fixture({member=true,expired=false,admin=false,mfa=false}={}){
+function fixture({member=true,expired=false,admin=false,mfa=false,signupMode='confirm'}={}){
  const calls=[];let revision=0,stops=[];
  const env={SUPABASE_URL:'https://supabase.example',SUPABASE_PUBLISHABLE_KEY:'public-test-key',ASSETS:{fetch:async()=>new Response('asset')}};
  const upstream=async(url,options)=>{
   calls.push({url,options});const path=new URL(url).pathname;
+  if(path==='/auth/v1/signup')return signupMode==='rate'?Response.json({code:'over_email_send_rate_limit'},{status:429}):Response.json(signupMode==='session'?{access_token:'signup-session',refresh_token:'signup-refresh',user:{id}}:{id,email:'new@example.com'});
   if(path==='/auth/v1/token')return Response.json({access_token:'access-test',refresh_token:'refresh-test',expires_in:3600,user:{id}});
   if(path==='/auth/v1/user')return expired&&options.headers.Authorization==='Bearer expired'?Response.json({error:'expired'},{status:401}):Response.json({id,email:'test@example.com',factors:[{id,factor_type:'totp',status:'verified'}]});
   if(path==='/rest/v1/rpc/fleteruta_access_status')return Response.json({is_admin:admin&&!mfa,mfa_required:mfa});
@@ -62,4 +63,17 @@ test('MFA pendiente bloquea panel y datos; verificar solo devuelve cookies priva
  assert.equal((await request('/admin',{cookie})).status,303);assert.equal((await request('/api/admin/users',{cookie})).status,403);assert.equal((await request('/api/route',{cookie})).status,403);
  assert.equal((await request('/auth/mfa',{method:'POST',cookie,body:{code:'abc'}})).status,400);
  const verified=await request('/auth/mfa',{method:'POST',cookie,body:{code:'123456'}});assert.equal(verified.status,200);assert.deepEqual(await verified.json(),{ok:true});assert.ok(verified.headers.getSetCookie().every(c=>c.includes('HttpOnly')));assert.ok(calls.some(c=>c.url.endsWith('/verify')));
+});
+test('registro crea solicitud sin acceso ni cookies y no acepta permisos desde el formulario',async()=>{
+ const {request,calls}=fixture({member:false}),body={email:'new@example.com',password:'fake-password-2026!',fullName:'Persona de prueba',isAdmin:true,fleteruta:true};
+ const result=await request('/auth/signup',{method:'POST',body});assert.equal(result.status,200);assert.deepEqual(await result.json(),{ok:true,pendingApproval:true});assert.equal(result.headers.get('Set-Cookie'),null);
+ const sent=JSON.parse(calls[0].options.body);assert.deepEqual(sent.data,{full_name:'Persona de prueba',signup_app:'fleteruta'});assert.equal('isAdmin' in sent,false);assert.ok(calls[0].url.includes('redirect_to='));
+ const login=await request('/auth/login',{method:'POST',body:{username:'new@example.com',password:body.password}});assert.equal(login.status,403);
+});
+test('registro valida datos, bloquea otro origen, respeta límites y revoca una sesión automática',async()=>{
+ const body={email:'new@example.com',password:'fake-password-2026!',fullName:'Persona de prueba'},normal=fixture();
+ assert.equal((await normal.request('/auth/signup',{method:'POST',body:{...body,password:'corta'}})).status,400);
+ assert.equal((await normal.request('/auth/signup',{method:'POST',body,requestOrigin:'https://evil.example'})).status,403);
+ assert.equal((await fixture({signupMode:'rate'}).request('/auth/signup',{method:'POST',body})).status,429);
+ const session=fixture({signupMode:'session'}),response=await session.request('/auth/signup',{method:'POST',body});assert.equal(response.headers.get('Set-Cookie'),null);assert.ok(session.calls.some(c=>c.url.endsWith('logout?scope=local')));
 });
