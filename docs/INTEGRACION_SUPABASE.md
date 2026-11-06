@@ -4,6 +4,8 @@
 
 La migración `fleteruta_foundation` está aplicada en el mismo proyecto Supabase de HidroTrack. Se agregaron exclusivamente objetos con prefijo `fleteruta_`; no se modificaron sus tablas, usuarios, políticas ni triggers.
 
+Publicado y comprobado en https://fleteruta.matilegen.workers.dev/ el 5 de noviembre de 2026. Primer despliegue verificado: `f3b73fb1-733c-47c5-8681-b6e2ca3ceac6`. La autorización local de Cloudflare fue renovada mediante su flujo oficial de dispositivo.
+
 - `fleteruta_members`: cuentas autorizadas. Se habilitó inicialmente al administrador ya registrado en `platform_admins`. Los clientes no pueden autorizarse ni editar membresías.
 - `fleteruta_routes`: un reparto activo guardado por cuenta, con hasta 30 paradas, estados, orden y opciones de recorrido.
 - `fleteruta_save_route`: guardado con control de revisión para evitar pisar cambios de otro dispositivo. Usa los permisos del usuario, sin `SECURITY DEFINER`.
@@ -28,7 +30,7 @@ npm test
 npm run deploy
 ```
 
-Wrangler ejecuta el build antes del despliegue. La integración Git de Cloudflare puede ejecutar `npx wrangler deploy` en cada push a main. Para desplegar desde esta PC hay que tener sesión de Cloudflare vigente; la existente estaba vencida durante la preparación.
+Wrangler ejecuta el build antes del despliegue. La integración Git de Cloudflare puede ejecutar `npx wrangler deploy` en cada push a main. Para desplegar desde esta PC hay que mantener vigente la sesión de Cloudflare. Este repositorio solo contiene la migración de FleteRuta, no el historial completo del proyecto compartido: no ejecutar un `supabase db push` masivo desde aquí contra la base de HidroTrack.
 
 Para probar el Worker local con Supabase real:
 
@@ -45,6 +47,7 @@ npm run dev:cloud
 - Asesores de seguridad: sin hallazgos asociados a objetos `fleteruta_`. Los avisos existentes de HidroTrack quedaron fuera de esta intervención y no se modificaron sus funciones.
 - Pruebas del Worker: acceso anónimo, cuenta no autorizada, cookies privadas, CSRF, renovación, logout local, validación y conflicto de guardado.
 - Prueba local del runtime de Cloudflare: status 200 con backend Supabase, raíz 303 hacia login, módulos con MIME JavaScript y secretos 404.
+- Prueba de la web pública: `/auth/status` responde 200 con backend Supabase; `/` devuelve 303 a `/login`; `/login` responde 200; `/api/route` sin sesión devuelve 401; módulos con MIME JavaScript; `.private/auth.json`, `server.mjs` y `wrangler.jsonc` devuelven 404. Solicitud de login desde otro origen devuelve 403.
 - Sin prueba de ingreso con una contraseña real del usuario ni prueba de GPS en celular. Esas validaciones siguen pendientes.
 
 El seguimiento de llegada mantiene la limitación de GPS en segundo plano del navegador. Esta integración no incorpora seguimiento nativo.

@@ -2,7 +2,7 @@
 
 Prototipo web para organizar repartos de hasta 30 entregas en Argentina. Versión TEST 0.3, con acceso privado y ubicación actual como salida.
 
-Integración preparada para Cloudflare Workers + Supabase compartido con HidroTrack: cuentas autorizadas por separado, datos propios y guardado/recuperación manual del reparto. Ver [configuración y estado](docs/INTEGRACION_SUPABASE.md). El login Supabase usa correo y contraseña de la cuenta autorizada; la prueba local original mantiene su login independiente.
+Publicado en [FleteRuta](https://fleteruta.matilegen.workers.dev/) con Cloudflare Workers + Supabase compartido con HidroTrack: cuentas autorizadas por separado, datos propios y guardado/recuperación manual del reparto. Ver [configuración y estado](docs/INTEGRACION_SUPABASE.md). El login Supabase usa correo y contraseña de la cuenta autorizada; la prueba local original mantiene su login independiente.
 
 ## Iniciar localmente
 
@@ -41,7 +41,7 @@ La web puede suspender el GPS al abrir Maps/Waze o bloquear el celular. Para est
 
 Los servicios públicos de Nominatim, OpenStreetMap y OSRM se usan para pruebas puntuales, sin garantía de disponibilidad. La ruta es aproximada: no garantiza el mínimo global, tráfico en vivo, restricciones para camiones ni tiempos de descarga. Los enlaces externos abren el siguiente trayecto; no modifican una sesión de navegación que ya está abierta.
 
-Pendiente: verificar el despliegue HTTPS y el ingreso real, probar en celular, elegir servicios de producción, historial de repartos y manejo ampliado de entregas fallidas.
+Despliegue HTTPS verificado. Pendiente: ingreso real con la cuenta del usuario, prueba en celular, elección de servicios de producción, historial de repartos y manejo ampliado de entregas fallidas.
 
 ## Verificación
 
