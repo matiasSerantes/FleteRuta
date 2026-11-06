@@ -18,7 +18,9 @@ En Cloudflare se ingresa con correo y contraseña de la cuenta Supabase autoriza
 
 Los tokens viajan en cookies HttpOnly, SameSite=Strict y Secure en HTTPS. Se renueva el token cuando vence. El logout solicita revocar solamente la sesión actual, sin cerrar las otras sesiones de HidroTrack. Las rutas privadas y la API comprueban cuenta y membresía.
 
-La copia local se separa por ID de cuenta. No se importa automáticamente el reparto anterior: el botón Importar reparto local permite recuperarlo expresamente. Guardar en nube es manual; Recuperar guardado descarga la copia. No hay aún historial de varios repartos ni sincronización automática en tiempo real.
+La copia local se separa por ID de cuenta. Cada cambio de entregas, orden o estado guarda el avance automáticamente. Primero persiste localmente, después envía a Supabase con control de revisión. Los cambios que ocurren durante una subida se envían en el siguiente guardado, en orden. Al volver a abrir se comprueba la nube; si existen cambios locales pendientes se conserva esa copia y se reintenta, sin pisarla silenciosamente. Los conflictos entre dispositivos requieren recuperación explícita. El estado de la pantalla distingue guardado en nube y pendiente. Guardar en nube sirve para reintentar; Recuperar guardado permite reemplazar la copia local con confirmación. No hay historial de varios repartos ni edición simultánea colaborativa.
+
+Al reabrir, se consulta GPS nuevo y se retoma la detección de la próxima entrega pendiente si hay permiso. Se conserva la confirmación humana antes de marcar la entrega. Cerrar la página detiene el GPS; no hay seguimiento mientras el navegador está cerrado. Si se borra el almacenamiento local antes de sincronizar un cambio sin conexión, ese cambio no puede recuperarse: verificar Guardado en nube antes de cambiar de dispositivo.
 
 ## Publicación
 

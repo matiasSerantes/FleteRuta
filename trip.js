@@ -13,6 +13,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   if(key!==current){current=key;detector.reset();closeArrival();}
   $('trip-target').textContent=target?target.address:'No quedan entregas pendientes.';
   $('trip-start').hidden=active;$('trip-stop').hidden=!active;
+  $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
   $('trip-go').hidden=!target;
   if(target)$('trip-go').href=urlFor(target);
   if(active&&!target)stop('Reparto completado. Seguimiento detenido.');
@@ -47,7 +48,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   if(!active||checking)return;checking=true;
   navigator.geolocation.getCurrentPosition(p=>{checking=false;positionReceived(p);},e=>{checking=false;gpsError(e);},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
  }
- $('trip-start').onclick=()=>{
+ function start(){
+  if(active)return;
   if(!window.isSecureContext||!navigator.geolocation?.watchPosition){message('El seguimiento necesita GPS y HTTPS o localhost.',true);return;}
   if(!next()){message('Cargá al menos una entrega pendiente.',true);return;}
   if(!getOrigin()){message('Primero obtené tu ubicación actual con el botón de salida.',true);return;}
@@ -55,7 +57,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   watch=navigator.geolocation.watchPosition(positionReceived,gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
   // Stationary drivers may receive no watch callbacks: refresh while visible to verify dwell.
   poll=setInterval(()=>{if(!document.hidden)refresh();},5000);
- };
+ }
+ $('trip-start').onclick=start;
  $('trip-stop').onclick=()=>stop();
  $('navigator-app').onchange=()=>{try{localStorage.setItem('fleteruta-navigator',$('navigator-app').value);}catch{}sync();if(arrivalId){const target=next();if(target)showArrival(target);}};
  $('arrival-no').onclick=()=>{detector.snooze();closeArrival();$('trip-status').textContent='Entrega pendiente. Volveremos a avisar después de un minuto si seguís cerca.';};
@@ -80,5 +83,5 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  };
  document.addEventListener('visibilitychange',()=>{if(active){if(document.hidden)$('trip-status').textContent='App en segundo plano: el navegador puede pausar el GPS. Al volver comprobaremos tu ubicación.';else refresh();}});
  window.addEventListener('pagehide',()=>stop());sync();
- return {sync,stop,get active(){return active;},get base(){return active?base:null;}};
+ return {sync,stop,resume(){if(next()&&getOrigin()&&navigator.geolocation?.watchPosition)start();},get active(){return active;},get base(){return active?base:null;}};
 }

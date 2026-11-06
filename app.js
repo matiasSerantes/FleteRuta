@@ -10,15 +10,15 @@ const localHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
 const KEY=boot.backend==='supabase'&&boot.userId?'fleteruta-user-'+boot.userId:localHost?'fleteruta-test-v1':'fleteruta-cloud-unavailable';
 let stops=[],origin=null,busy=false,map,markers,line,tiles,editing=null,lastSearch=0,cache={},focusedId=null,manualOrder=false;
 const markerById=new Map();
-let trip=null;
+let trip=null,cloud=null;
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,30);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
 function searchHint(){$('search-area').textContent=$('search-scope').value==='argentina'?'Buscando solo en Argentina. Resultados ordenados por cercanía.':origin?'Solo Argentina, hasta 100 km de tu ubicación actual.':'Sin GPS: búsqueda en Buenos Aires y alrededores (hasta 100 km de CABA).';}
 try{manualOrder=JSON.parse(localStorage.getItem(KEY)||'{}').manualOrder===true;}catch{}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({stops,roundTrip:$('return').checked,cache,manualOrder}));}catch{message('No se pudo guardar en este navegador. Conservá la pestaña abierta.',true);}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({stops,roundTrip:$('return').checked,cache,manualOrder}));cloud?.changed();}catch{message('No se pudo guardar en este navegador. Conservá la pestaña abierta.',true);}}
 function lock(value){busy=value;document.querySelectorAll('button,input,select').forEach(el=>el.disabled=value||el.dataset.unavailable==='true');}
-async function task(fn){if(busy)return;lock(true);try{const auth=await fetch('/auth/status').then(r=>r.json());if(!auth.authenticated){location.replace('/login');return;}await fn();}catch(e){message(e.message||'No se pudo completar la operación.',true);}finally{lock(false);}}
+async function task(fn){if(busy)return;lock(true);try{const auth=await fetch('/auth/status').then(r=>r.json());if(!auth.authenticated||auth.mfaRequired){location.replace('/login');return;}await fn();}catch(e){message(e.message||'No se pudo completar la operación.',true);}finally{lock(false);}}
 async function json(url,signal){let response;try{response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000)});}catch(e){if(signal?.aborted)throw e;throw Error('No se pudo contactar el servicio. Revisá Internet y volvé a intentar.');}if(!response.ok)throw Error(`El servicio respondió ${response.status}. Probá nuevamente más tarde.`);return response.json();}
 function clearRoute(){$('summary').textContent='';$('navigation').replaceChildren();if(line&&map){map.removeLayer(line);line=null;}}
 function node(tag,text,className){const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el;}
@@ -142,7 +142,7 @@ function initMap(){
 }
 $('retry-map').onclick=()=>{if(tiles){$('map-status').textContent='Reintentando conexión del mapa…';tiles.redraw();map.invalidateSize();}else location.reload();};
 $('logout').onclick=async()=>{queue.cancel();trip?.stop();const response=await fetch('/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(response.ok)location.replace('/login');else message('No se pudo cerrar la sesión. Volvé a intentar.',true);};
-document.addEventListener('visibilitychange',async()=>{if(!document.hidden){try{const status=await fetch('/auth/status').then(r=>r.json());if(!status.authenticated){queue.cancel();trip?.stop();location.replace('/login');}}catch{}}});
+document.addEventListener('visibilitychange',async()=>{if(!document.hidden){try{const status=await fetch('/auth/status').then(r=>r.json());if(!status.authenticated||status.mfaRequired){queue.cancel();trip?.stop();location.replace('/login');}else if(trip&&!trip.active){void task(async()=>{await locate();trip.resume();});}}catch{}}});
 trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
  onStart(){manualOrder=true;changed('Seguimiento iniciado. Se conserva la secuencia de paradas para avanzar una por una.');},
  onComplete(id,position){const stop=stops.find(s=>s.id===id);if(!stop||stop.done)return;stop.done=true;manualOrder=true;
@@ -151,7 +151,7 @@ trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
  }
 });
 initMap();render();searchHint();if(stops.length)fit();
-const cloud=mountCloudStore({enabled:boot.backend==='supabase',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
+cloud=mountCloudStore({enabled:boot.backend==='supabase',storageKey:KEY+'-cloud',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
  applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=snapshot.stops;manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}
 });
-await cloud.initialize();task(locate);
+await cloud.initialize();task(async()=>{await locate();trip.resume();});

@@ -2,7 +2,7 @@
 
 Prototipo web para organizar repartos de hasta 30 entregas en Argentina. Versión TEST 0.3, con acceso privado y ubicación actual como salida.
 
-Publicado en [FleteRuta](https://fleteruta.matilegen.workers.dev/) con Cloudflare Workers + Supabase compartido con HidroTrack: cuentas autorizadas por separado, datos propios y guardado/recuperación manual del reparto. Ver [configuración y estado](docs/INTEGRACION_SUPABASE.md). El login Supabase usa correo y contraseña de la cuenta autorizada; la prueba local original mantiene su login independiente.
+Publicado en [FleteRuta](https://fleteruta.matilegen.workers.dev/) con Cloudflare Workers + Supabase compartido con HidroTrack: cuentas autorizadas por separado, datos propios y guardado automático del avance. Al volver se recuperan las entregas pendientes y se consulta una ubicación nueva para reanudar la detección de llegada. Ver [configuración y estado](docs/INTEGRACION_SUPABASE.md).
 
 El administrador dispone de [Usuarios y accesos](docs/USUARIOS_Y_ACCESOS.md), con separación por aplicación y verificación TOTP cuando está configurada en su cuenta.
 
@@ -35,7 +35,7 @@ Este servidor de prueba escucha únicamente en esta PC. No usar un servidor est�
 
 La cuenta se guarda como hash con sal en `.private/auth.json`; esa carpeta está excluida de Git y el servidor no la publica. Las sesiones usan cookies HttpOnly y vencen a las 8 horas. Hay límite de intentos de acceso.
 
-En la prueba local, las direcciones y el progreso se guardan en localStorage. En Cloudflare se mantiene una copia local por cuenta y se puede guardar/recuperar el reparto activo en Supabase, sin sincronización automática. Las búsquedas y coordenadas se envían a los servicios de mapas correspondientes; evitar datos sensibles durante las pruebas.
+En la prueba local, las direcciones y el progreso se guardan en localStorage. En Cloudflare se guarda automáticamente una copia local por cuenta y se sincroniza el avance con Supabase. La pantalla informa si falta subir algún cambio; los conflictos no sobrescriben silenciosamente el avance. Las búsquedas y coordenadas se envían a los servicios de mapas correspondientes; evitar datos sensibles durante las pruebas.
 
 ## Límites conocidos
 
@@ -52,7 +52,7 @@ npm ci
 npm test
 ```
 
-40 pruebas automáticas de lógica, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular.
+42 pruebas automáticas de lógica, recuperación/guardado, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular.
 
 El código de la app usa HTML, CSS y JavaScript, sin compilación ni dependencias de servidor externas. Leaflet 1.9.4 se incluye en `vendor/leaflet` con su licencia. Happy DOM se utiliza solo para desarrollo.
 
