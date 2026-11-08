@@ -20,7 +20,9 @@ test('llegada, notificación, rechazo y confirmación abren solo el siguiente de
  const arrive=stop=>{const now=Date.now();for(const timestamp of [now-9000,now])callback({timestamp,coords:{latitude:stop.lat,longitude:stop.lon,accuracy:10,speed:0}});};
  try{
   await $('trip-notifications').onclick();assert.equal(registrations,1);
+  assert.equal(new URL($('trip-go').href).searchParams.get('origin'),'-34.5,-58.3');
   trip.resume();assert.equal(trip.active,true);arrive(stops[0]);assert.equal($('arrival-dialog').open,true);assert.equal(notices,1);assert.equal(stops[0].done,false);
+  assert.equal(new URL($('arrival-yes').href).searchParams.get('origin'),'-34.6,-58.4');
   $('arrival-no').click();assert.equal($('arrival-dialog').open,false);assert.deepEqual(completed,[]);
   $('trip-stop').click();$('trip-start').click();arrive(stops[0]);assert.equal($('arrival-dialog').open,true);
   const click=new window.MouseEvent('click',{cancelable:true});$('arrival-yes').onclick(click);

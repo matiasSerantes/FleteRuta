@@ -7,7 +7,12 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  try{$('navigator-app').value=localStorage.getItem('fleteruta-navigator')==='waze'?'waze':'maps';}catch{}
  const next=()=>getStops().find(s=>!s.done);
  const mobile=()=>window.innerWidth<=760||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')||navigator.maxTouchPoints>1;
- const planFor=(stops=getStops())=>navigationPlan(stops,$('navigator-app').value,{limit:mobile()?4:10,returnPoint:$('return').checked&&getStops().length?(base||getOrigin()):null});
+ function currentOrigin(){
+  const coords=lastPosition?.coords,age=Date.now()-lastPosition?.timestamp;
+  if(coords&&age>=0&&age<=20000&&coords.accuracy<=150&&Number.isFinite(coords.latitude)&&Math.abs(coords.latitude)<=90&&Number.isFinite(coords.longitude)&&Math.abs(coords.longitude)<=180)return {lat:coords.latitude,lon:coords.longitude};
+  return getOrigin();
+ }
+ const planFor=(stops=getStops())=>navigationPlan(stops,$('navigator-app').value,{origin:currentOrigin(),limit:mobile()?4:10,returnPoint:$('return').checked&&getStops().length?(base||getOrigin()):null});
  function closeArrival(){arrivalId=null;if($('arrival-dialog').open)$('arrival-dialog').close();notification?.close();registration?.getNotifications({tag:'fleteruta-arrival'}).then(items=>items.forEach(n=>n.close())).catch(()=>{});}
  function sync(){
   const target=next(),key=target?`${target.id}:${target.lat}:${target.lon}`:null;
@@ -65,6 +70,10 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  }
  $('trip-start').onclick=start;
  $('trip-go').onclick=event=>{
+  if(!currentOrigin()){
+   event.preventDefault();message('Primero necesitamos tu ubicación. Tocá Actualizar mi ubicación y permití el GPS.',true);
+   const details=$('locate').closest('details');if(details)details.open=true;$('locate').scrollIntoView?.({behavior:'smooth',block:'center'});return;
+  }
   if(!active&&next())start();
   const plan=planFor();if(plan.url)$('trip-go').href=plan.url;else event.preventDefault();
  };

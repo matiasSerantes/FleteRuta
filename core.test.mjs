@@ -15,6 +15,12 @@ test('envía el máximo compatible y repone pendientes sin repetir entregadas',(
  const waze=navigationPlan(pending,'waze');assert.equal(waze.sent.length,1);assert.equal(waze.remaining,29);assert.match(waze.url,/waze.com/);
  const home={lat:-34.5,lon:-58.3};const back=navigationPlan(stops,'maps',{returnPoint:home});assert.deepEqual(back.sent,[home]);
 });
+
+test('Maps recibe origen explícito, destino y las paradas intermedias',()=>{
+ const origin={lat:-34.5719394,lon:-58.6028684},stops=[{lat:-34.58,lon:-58.61},{lat:-34.59,lon:-58.62}];
+ const url=new URL(navigationPlan(stops,'maps',{origin}).url);
+ assert.equal(url.searchParams.get('origin'),'-34.5719394,-58.6028684');assert.equal(url.searchParams.get('destination'),'-34.59,-58.62');assert.equal(url.searchParams.get('waypoints'),'-34.58,-58.61');assert.equal(url.searchParams.get('dir_action'),'navigate');
+});
 test('recorrido abierto y regreso al origen cambian el orden óptimo',()=>{
  const m=[[0,1,2],[10,0,1],[1,10,0]];
  assert.deepEqual(optimize(m),[1,2]);assert.equal(routeCost(optimize(m,true),m,true),3);

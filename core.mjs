@@ -14,14 +14,14 @@ export function optimize(matrix,roundTrip=false){
  return best;
 }
 export function blocks(stops,size=4){let result=[];for(let i=0;i<stops.length;i+=size)result.push(stops.slice(i,i+size));return result;}
-export function navigationPlan(stops,app='maps',{returnPoint=null,limit=4}={}){
+export function navigationPlan(stops,app='maps',{returnPoint=null,limit=4,origin=null}={}){
  const pending=stops.filter(s=>!s.done),destinations=[...pending,...(returnPoint?[returnPoint]:[])];
  const capacity=app==='waze'?1:Math.max(1,Math.min(10,limit));
  const sent=destinations.slice(0,capacity),remaining=destinations.length-sent.length;
- const url=!sent.length?null:app==='waze'?`https://waze.com/ul?ll=${sent[0].lat}%2C${sent[0].lon}&navigate=yes`:mapsURL(sent);
+ const url=!sent.length?null:app==='waze'?`https://waze.com/ul?ll=${sent[0].lat}%2C${sent[0].lon}&navigate=yes`:mapsURL(sent,origin);
  return {url,sent,remaining,pending:pending.length,total:destinations.length};
 }
-export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);const coord=p=>`${p.lat},${p.lon}`;url.searchParams.set('destination',coord(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(coord).join('|'));return url.href;}
+export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');url.searchParams.set('dir_action','navigate');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);const coord=p=>`${p.lat},${p.lon}`;url.searchParams.set('destination',coord(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(coord).join('|'));return url.href;}
 export const BUENOS_AIRES={lat:-34.6037,lon:-58.3816};
 export function distanceKm(a,b){const r=Math.PI/180,h=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lon-a.lon)*r/2)**2;return 6371*2*Math.asin(Math.sqrt(Math.min(1,h)));}
 export function addressSearch(query,origin,scope='nearby'){

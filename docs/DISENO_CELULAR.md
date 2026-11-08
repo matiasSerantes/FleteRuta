@@ -10,6 +10,6 @@ Actualizado el 8 de noviembre de 2026. Diseño inspirado en la organización de 
 - Opciones de GPS, seguimiento, notificaciones y guardado quedan plegadas, con rótulos explícitos. El estado de guardado permanece visible cuando la cuenta usa la nube.
 - En cada parada, Entregada es la acción destacada. Editar y Eliminar están bajo Más opciones; eliminar pide confirmación. Se conservan Subir y Bajar.
 
-Verificación: 49 pruebas automáticas aprobadas, con cambios de sección, carga de lista, edición que lleva a Clientes, eliminación confirmada, recuperación y navegación de pendientes. Chrome real en Windows con viewport de 360 × 800 y 390 × 800: sin desborde horizontal, botón principal visible antes de la barra inferior, cambio entre las tres secciones. Vista de escritorio conserva la tabla.
+Verificación: 50 pruebas automáticas aprobadas, con cambios de sección, carga de lista, edición que lleva a Clientes, eliminación confirmada, recuperación y navegación de pendientes. Chrome real en Windows con viewport de 360 × 800 y 390 × 800: sin desborde horizontal, botón principal visible antes de la barra inferior, cambio entre las tres secciones. Vista de escritorio conserva la tabla.
 
 Capturas locales con datos ficticios: `.private/home-360.png`, `.private/home-390.png`, `.private/mobile-390.png`. Script repetible: `node scripts/mobile-smoke.mjs`. Login, GPS y entregas se simulan para esta revisión visual; falta la prueba de uso en el teléfono de la persona invitada.

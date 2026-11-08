@@ -11,3 +11,5 @@ El progreso debe marcarse o confirmarse en FleteRuta. Google Maps y Waze no comu
 Documentación consultada el 8 de noviembre de 2026: [Google Maps URLs](https://developers.google.com/maps/documentation/urls/get-started), [Waze Deep Links](https://developers.google.com/waze/deeplinks).
 
 Verificado con pruebas de 30 paradas, entregadas excluidas, cambios de cupo, Waze y retorno. Prueba de interfaz móvil: entrega manual, eliminación, aviso de llegada y enlace con las siguientes pendientes. La apertura en las aplicaciones reales del teléfono sigue requiriendo la prueba del fletero.
+
+Corrección de salida: se envía origin con las coordenadas obtenidas por FleteRuta y dir_action=navigate. Si el seguimiento tiene una posición reciente y precisa, se usa esa como salida. Al confirmar llegada, el siguiente recorrido parte de la ubicación de esa entrega. Sin ubicación disponible, el botón solicita habilitar el GPS en lugar de abrir un formulario sin salida. Waze toma la salida desde su propio GPS. Verificado con 50 pruebas automáticas; apertura real en el teléfono pendiente.
