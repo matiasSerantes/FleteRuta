@@ -26,7 +26,7 @@ Este servidor de prueba escucha únicamente en esta PC. No usar un servidor est�
 - Orden automático aproximado por cercanía, ajustado con distancias por calles de OSRM.
 - Botones Subir/Bajar y modo manual persistido, con regreso explícito al orden automático.
 - Edición, destinatario, notas y marcado de entregas realizadas.
-- Navegación a una entrega en Maps/Waze o envío a Google Maps por bloques compatibles.
+- Selector de app y un único botón para abrir las entregas pendientes: Google Maps hasta 4 destinos en móvil o 10 en escritorio; Waze un destino por enlace. Al completar o eliminar clientes, el siguiente envío excluye esas paradas y agrega las siguientes pendientes.
 - Seguimiento de llegada: cercanía de 100 m, precisión de hasta 60 m y permanencia de al menos 8 segundos. La entrega se completa solo al confirmar.
 - Confirmación para abrir el próximo destino en la app elegida, manteniendo la secuencia.
 - Avisos dentro de la app y notificaciones del sistema opcionales, según soporte y permisos.
@@ -52,7 +52,7 @@ npm ci
 npm test
 ```
 
-47 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
+49 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
 
 El código de la app usa HTML, CSS y JavaScript, sin compilación ni dependencias de servidor externas. Leaflet 1.9.4 se incluye en `vendor/leaflet` con su licencia. Happy DOM se utiliza solo para desarrollo.
 

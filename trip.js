@@ -1,4 +1,4 @@
-import {mapsURL} from './core.mjs';
+import {navigationPlan} from './core.mjs';
 import {createArrivalDetector} from './planner.mjs';
 
 export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
@@ -6,7 +6,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  let active=false,watch=null,poll=null,current=null,lastPosition=null,registration=null,notification=null,base=null,checking=false,arrivalId=null;
  try{$('navigator-app').value=localStorage.getItem('fleteruta-navigator')==='waze'?'waze':'maps';}catch{}
  const next=()=>getStops().find(s=>!s.done);
- const urlFor=point=>$('navigator-app').value==='waze'?`https://waze.com/ul?ll=${point.lat}%2C${point.lon}&navigate=yes`:mapsURL([point]);
+ const mobile=()=>window.innerWidth<=760||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')||navigator.maxTouchPoints>1;
+ const planFor=(stops=getStops())=>navigationPlan(stops,$('navigator-app').value,{limit:mobile()?4:10,returnPoint:$('return').checked&&getStops().length?(base||getOrigin()):null});
  function closeArrival(){arrivalId=null;if($('arrival-dialog').open)$('arrival-dialog').close();notification?.close();registration?.getNotifications({tag:'fleteruta-arrival'}).then(items=>items.forEach(n=>n.close())).catch(()=>{});}
  function sync(){
   const target=next(),key=target?`${target.id}:${target.lat}:${target.lon}`:null;
@@ -14,8 +15,10 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   $('trip-target').textContent=target?target.address:'No quedan entregas pendientes.';
   $('trip-start').hidden=active;$('trip-stop').hidden=!active;
   $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
-  $('trip-go').hidden=!target;
-  if(target)$('trip-go').href=urlFor(target);
+  const plan=planFor();$('trip-go').hidden=!plan.url;
+  if(plan.url)$('trip-go').href=plan.url;else $('trip-go').removeAttribute('href');
+  $('trip-go').textContent=`Abrir recorrido en ${$('navigator-app').value==='waze'?'Waze':'Google Maps'} ↗`;
+  $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze acepta un destino por enlace.':mobile()?'Enlaces de Google Maps: hasta 4 destinos en navegador móvil.':'Enlaces de Google Maps: hasta 10 destinos.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
   if(active&&!target)stop('Reparto completado. Seguimiento detenido.');
  }
  function stop(text='Seguimiento detenido. Podés volver a iniciarlo.'){
@@ -33,7 +36,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   const destination=following||returnPoint;
   $('arrival-next-address').textContent=following?`Próxima: ${following.address}`:returnPoint?'Última entrega. Después volvés al punto de salida.':'Es la última entrega del reparto.';
   $('arrival-yes').textContent=following?'Sí, entregar e ir a la siguiente':returnPoint?'Entregar y volver al inicio':'Sí, finalizar reparto';
-  if(destination)$('arrival-yes').href=urlFor(destination);else $('arrival-yes').removeAttribute('href');
+  const plan=planFor(pending.slice(index+1));
+  if(destination&&plan.url)$('arrival-yes').href=plan.url;else $('arrival-yes').removeAttribute('href');
   if(!$('arrival-dialog').open)$('arrival-dialog').showModal();
   $('arrival-yes').focus();notify();
  }
@@ -59,6 +63,10 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   poll=setInterval(()=>{if(!document.hidden)refresh();},5000);
  }
  $('trip-start').onclick=start;
+ $('trip-go').onclick=event=>{
+  if(!active&&next())start();
+  const plan=planFor();if(plan.url)$('trip-go').href=plan.url;else event.preventDefault();
+ };
  $('trip-stop').onclick=()=>stop();
  $('navigator-app').onchange=()=>{try{localStorage.setItem('fleteruta-navigator',$('navigator-app').value);}catch{}sync();if(arrivalId){const target=next();if(target)showArrival(target);}};
  $('arrival-no').onclick=()=>{detector.snooze();closeArrival();$('trip-status').textContent='Entrega pendiente. Volveremos a avisar después de un minuto si seguís cerca.';};
@@ -66,7 +74,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  $('arrival-yes').onclick=event=>{
   const target=next();if(!active||!target||target.id!==arrivalId){event.preventDefault();closeArrival();message('La parada cambió. Esperá una nueva detección de llegada.',true);return;}
   const pending=getStops().filter(s=>!s.done),following=pending[1],destination=following||($('return').checked?base:null);
-  if(destination)$('arrival-yes').href=urlFor(destination);else event.preventDefault();
+  const plan=planFor(pending.slice(1));
+  if(destination&&plan.url)$('arrival-yes').href=plan.url;else event.preventDefault();
   // Synchronous click keeps the external navigation within the user's gesture.
   closeArrival();onComplete(target.id,lastPosition);sync();
  };

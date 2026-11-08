@@ -1,6 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {optimize,routeCost,blocks,mapsURL,addressSearch,localAddressResults,BUENOS_AIRES} from './core.mjs';
+import {optimize,routeCost,blocks,mapsURL,navigationPlan,addressSearch,localAddressResults,BUENOS_AIRES} from './core.mjs';
+
+test('envía el máximo compatible y repone pendientes sin repetir entregadas',()=>{
+ const stops=Array.from({length:30},(_,i)=>({id:i,lat:-34-i/1000,lon:-58,done:i<3})),seen=[];
+ while(stops.some(s=>!s.done)){
+  const plan=navigationPlan(stops);assert.ok(plan.sent.length<=4);
+  const url=new URL(plan.url),coords=[...(url.searchParams.get('waypoints')||'').split('|').filter(Boolean),url.searchParams.get('destination')];
+  assert.deepEqual(coords,plan.sent.map(s=>`${s.lat},${s.lon}`));
+  plan.sent.forEach(s=>{assert.equal(s.done,false);seen.push(s.id);s.done=true;});
+ }
+ assert.deepEqual(seen,Array.from({length:27},(_,i)=>i+3));assert.equal(navigationPlan(stops).url,null);
+ const pending=stops.map(s=>({...s,done:false}));assert.equal(navigationPlan(pending,'maps',{limit:10}).sent.length,10);
+ const waze=navigationPlan(pending,'waze');assert.equal(waze.sent.length,1);assert.equal(waze.remaining,29);assert.match(waze.url,/waze.com/);
+ const home={lat:-34.5,lon:-58.3};const back=navigationPlan(stops,'maps',{returnPoint:home});assert.deepEqual(back.sent,[home]);
+});
 test('recorrido abierto y regreso al origen cambian el orden óptimo',()=>{
  const m=[[0,1,2],[10,0,1],[1,10,0]];
  assert.deepEqual(optimize(m),[1,2]);assert.equal(routeCost(optimize(m,true),m,true),3);

@@ -32,6 +32,9 @@ try{
  for(let i=0;i<100;i++){if(await evaluate(`document.querySelectorAll('#stops tr').length===2 && document.getElementById('gps-label').textContent==='Ubicación actual lista'`))break;await new Promise(r=>setTimeout(r,100));}
  const mobile=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,rows:document.querySelectorAll('#stops tr').length,rowDisplay:getComputedStyle(document.querySelector('#stops tr')).display,actions:[...document.querySelectorAll('#stops .actions button')].map(b=>({width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})),list:!!document.getElementById('list-load')})`);
  assert.equal(mobile.rows,2);assert.equal(mobile.rowDisplay,'block');assert.ok(mobile.content<=mobile.width,JSON.stringify(mobile));assert.ok(mobile.actions.every(b=>b.height>=44));assert.ok(mobile.list);
+ assert.equal(await evaluate(`document.querySelectorAll('a[href*="google.com/maps/dir"],a[href*="waze.com/ul"]').length`),1);
+ await mkdir(path.join(root,'.private'),{recursive:true});await evaluate(`document.querySelector('.trip-panel').scrollIntoView()`);
+ await writeFile(path.join(root,'.private','navigation-390.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  await mkdir(path.join(root,'.private'),{recursive:true});await evaluate(`document.querySelector('.deliveries-panel').scrollIntoView()`);
  await writeFile(path.join(root,'.private','mobile-390.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  await send('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});

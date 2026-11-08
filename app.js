@@ -1,4 +1,4 @@
-import {blocks,mapsURL,addressSearch,localAddressResults,distanceKm} from './core.mjs';
+import {addressSearch,localAddressResults,distanceKm} from './core.mjs';
 import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
@@ -21,10 +21,10 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({stops,roundTrip:$('
 function lock(value){busy=value;document.querySelectorAll('button,input,select').forEach(el=>el.disabled=value||el.dataset.unavailable==='true');}
 async function task(fn){if(busy)return;lock(true);try{const auth=await fetch('/auth/status').then(r=>r.json());if(!auth.authenticated||auth.mfaRequired){location.replace('/login');return;}await fn();}catch(e){message(e.message||'No se pudo completar la operación.',true);}finally{lock(false);}}
 async function json(url,signal){let response;try{response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000)});}catch(e){if(signal?.aborted)throw e;throw Error('No se pudo contactar el servicio. Revisá Internet y volvé a intentar.');}if(!response.ok)throw Error(`El servicio respondió ${response.status}. Probá nuevamente más tarde.`);return response.json();}
-function clearRoute(){$('summary').textContent='';$('navigation').replaceChildren();if(line&&map){map.removeLayer(line);line=null;}}
+function clearRoute(){$('summary').textContent='';if(line&&map){map.removeLayer(line);line=null;}}
 function node(tag,text,className){const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el;}
 function button(text,handler,label){const el=node('button',text);el.type='button';if(label)el.setAttribute('aria-label',label);el.onclick=()=>{if(!busy)handler();};return el;}
-function navigationLink(text,url){const a=node('a',text);a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
+
 function fit(){if(map&&markers?.getLayers().length)map.fitBounds(markers.getBounds().pad(.15),{maxZoom:16});}
 function selectStop(id,fromMap=false){focusedId=id;document.querySelectorAll('#stops tr').forEach(row=>row.classList.toggle('selected',row.dataset.id===id));if(fromMap){document.querySelectorAll('#stops tr').forEach(row=>{if(row.dataset.id===id)row.scrollIntoView({behavior:'smooth',block:'nearest'});});}else{const marker=markerById.get(id);if(marker){map.panTo(marker.getLatLng());marker.openPopup();}}}
 function draw(){
@@ -47,7 +47,7 @@ function render(){
    const unavailable=s.done||!stops[i+delta]||stops[i+delta].done;
    move.dataset.unavailable=String(unavailable);move.disabled=busy||unavailable;group.append(move);
   }
-  group.append(button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');}),button('Editar',()=>{editing=s.id;$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}),navigationLink('Maps ↗',mapsURL([s])),navigationLink('Waze ↗',`https://waze.com/ul?ll=${s.lat}%2C${s.lon}&navigate=yes`));
+  group.append(button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');}),button('Editar',()=>{editing=s.id;$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}));
   actions.append(group);row.append(address,node('td',s.recipient||'—'),node('td',s.notes||'—'),state,actions);['Parada / dirección','Destinatario','Observaciones','Estado','Acciones'].forEach((label,index)=>row.children[index].dataset.label=label);$('stops').append(row);
  });draw();trip?.sync();
 }
@@ -77,17 +77,11 @@ const queue=createRouteQueue({
    const minutes=Math.round(route.duration/60);$('summary').textContent=`${ordered.filter(s=>!s.done).length} pendientes · ${(route.distance/1000).toFixed(1)} km · ${Math.floor(minutes/60)} h ${minutes%60} min estimados. Sin tránsito ni tiempo de descarga.`;
    routeState(snapshot.manualOrder?'Orden manual · recorrido actualizado':'Orden actualizado por calles','ready');
   }else{routeState(snapshot.manualOrder?'Orden manual · trazado no disponible':'Orden por calles · trazado no disponible','warning');}
-  showNavigation(snapshot.roundTrip);fit();
+  fit();
  },
  onError(error,snapshot){routeState(snapshot.manualOrder?'Orden manual · sin cálculo por calles':'Orden provisional por cercanía · sin cálculo por calles','warning');message(`${error.message} Se conservan todas las entregas. ${snapshot.manualOrder?'Se mantiene tu orden manual.':'El orden es provisional por cercanía.'} Pulsá Actualizar para reintentar.`,true);}
 });
-function showNavigation(roundTrip){
- const pending=stops.filter(s=>!s.done);if(!pending.length)return;
- $('navigation').append(navigationLink('Navegar a la próxima entrega ↗',mapsURL([pending[0]])));
- const destinations=[...pending,...(roundTrip?[{...(trip?.base||origin),address:'Regreso al origen'}]:[])];
- blocks(destinations).forEach((block,i)=>$('navigation').append(navigationLink(`Google Maps · bloque ${i+1} · ${block.length} destinos ↗`,mapsURL(block))));
- $('navigation').append(node('p','Abrí los bloques en orden al terminar el anterior. Cada uno usa tu ubicación al abrir Maps como origen.','help'));
-}
+
 function changed(text){
  queue.cancel();clearRoute();stops=manualOrder?[...stops.filter(s=>!s.done),...stops.filter(s=>s.done)]:orderedStops(stops,origin,$('return').checked);save();render();fit();
  if(text)message(text);
