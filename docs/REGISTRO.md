@@ -10,4 +10,4 @@ El trigger existente de Supabase crea el perfil común con el nombre. Eso no asi
 
 El envío y los límites de correo corresponden a la configuración de Supabase. Se verificó el flujo con respuestas simuladas, sin crear usuarios reales ni enviar correos de prueba. La entrega del correo y el registro real de la persona invitada quedan pendientes de esa prueba.
 
-45 pruebas automáticas aprobadas, incluidas validación, contraseñas distintas, registro sin cookies ni permisos, límites de correo, bloqueo de otro origen y conservación del login con MFA.
+47 pruebas automáticas aprobadas, incluidas validación, contraseñas distintas, registro sin cookies ni permisos, límites de correo, bloqueo de otro origen y conservación del login con MFA.

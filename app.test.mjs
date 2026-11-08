@@ -33,13 +33,18 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
  const checkMapNumbers=()=>{for(const [i,address] of rowAddresses().entries()){const marker=[...document.querySelectorAll('.leaflet-marker-icon')].find(el=>el.title===`${i+1}. ${address}`||el.title===`${i+1}. ${address} · Entregada`);assert.ok(marker,`Marcador ${i+1}: ${address}`);assert.equal(marker.textContent,String(i+1));}};
  try{
   await import('./app.js');await until(()=>$('gps-label').textContent==='Ubicación actual lista'&&!$('search-button').disabled);
+  $('address-list').value='Lejana 1234\tCliente lejano\tPortón azul\nCercana 1234\nIntermedia 1234';$('list-load').click();
+  assert.equal($('recipient').value,'Cliente lejano');assert.equal($('notes').value,'Portón azul');
   for(const address of ['Lejana 1234','Cercana 1234','Intermedia 1234']){
-   $('address').value=address;$('search-form').dispatchEvent(new window.Event('submit',{cancelable:true}));
+   assert.equal($('address').value,address);$('search-form').dispatchEvent(new window.Event('submit',{cancelable:true}));
    await until(()=>!!$('results').querySelector('button')&&!$('search-button').disabled);
    assert.equal($('results').querySelectorAll('button').length,1);assert.ok(!$('results').textContent.includes('Resultado extranjero'));assert.ok(!$('results').textContent.includes('Resultado en Córdoba'));
    $('results').querySelector('button').click();await until(()=>rowAddresses().includes(address)&&!$('search-button').disabled);
   }
   assert.deepEqual(rowAddresses(),['Cercana 1234','Intermedia 1234','Lejana 1234']);checkMapNumbers();
+  assert.equal($('list-load').hidden,false);assert.deepEqual(JSON.parse(localStorage.getItem('fleteruta-test-v1-address-list')),[]);
+  assert.equal(document.querySelector('#stops tr td:last-child').dataset.label,'Acciones');
+  assert.match(document.querySelectorAll('#stops tr')[2].textContent,/Cliente lejano/);
   await until(()=>$('route-state').dataset.state==='ready');checkMapNumbers();assert.match($('summary').textContent,/3 pendientes/);
   const beforeManual=matrixCalls;
   const move=(row,text)=>[...document.querySelectorAll('#stops tr')[row].querySelectorAll('button')].find(b=>b.textContent===text);

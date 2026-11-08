@@ -1,4 +1,4 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/notifications-sw.js','/estado-proyecto.js']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/notifications-sw.js','/estado-proyecto.js']);
 const PRIVATE=new Set(['/','/index.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
 const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};

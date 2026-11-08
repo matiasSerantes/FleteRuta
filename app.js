@@ -2,6 +2,7 @@ import {blocks,mapsURL,addressSearch,localAddressResults,distanceKm} from './cor
 import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
+import {mountAddressList} from './address-list.js';
 const $=id=>document.getElementById(id);
 const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
 if(boot.mfaRequired)location.replace('/login');
@@ -10,7 +11,7 @@ const localHost=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
 const KEY=boot.backend==='supabase'&&boot.userId?'fleteruta-user-'+boot.userId:localHost?'fleteruta-test-v1':'fleteruta-cloud-unavailable';
 let stops=[],origin=null,busy=false,map,markers,line,tiles,editing=null,lastSearch=0,cache={},focusedId=null,manualOrder=false;
 const markerById=new Map();
-let trip=null,cloud=null;
+let trip=null,cloud=null,addressList=null;
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,30);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
@@ -47,7 +48,7 @@ function render(){
    move.dataset.unavailable=String(unavailable);move.disabled=busy||unavailable;group.append(move);
   }
   group.append(button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');}),button('Editar',()=>{editing=s.id;$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}),navigationLink('Maps ↗',mapsURL([s])),navigationLink('Waze ↗',`https://waze.com/ul?ll=${s.lat}%2C${s.lon}&navigate=yes`));
-  actions.append(group);row.append(address,node('td',s.recipient||'—'),node('td',s.notes||'—'),state,actions);$('stops').append(row);
+  actions.append(group);row.append(address,node('td',s.recipient||'—'),node('td',s.notes||'—'),state,actions);['Parada / dirección','Destinatario','Observaciones','Estado','Acciones'].forEach((label,index)=>row.children[index].dataset.label=label);$('stops').append(row);
  });draw();trip?.sync();
 }
 function moveStop(id,delta){
@@ -125,12 +126,13 @@ $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
    const item={id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
    if(old)stops[stops.indexOf(old)]=item;else stops.push(item);focusedId=item.id;editing=null;
    $('search-form').reset();$('results').replaceChildren();changed(old?'Dirección corregida. Recorrido actualizado automáticamente.':'Dirección agregada a la tabla y al mapa. El recorrido se acomoda automáticamente.');
+   if(!old)addressList?.confirmed(queryAtSearch);
   }));b.className='result';const km=distanceKm(search.center,{lat:Number(result.lat),lon:Number(result.lon)});b.append(node('span',`${km.toFixed(1)} km ${origin?'de tu ubicación':'de CABA'} · Confirmar esta ubicación`));$('results').append(b);
  });message('Seleccioná la dirección correcta. Al confirmarla se agrega y se ordena sola.');
  });};
 $('return').onchange=()=>changed('Destino final actualizado. Reacomodando las paradas.');
 $('fit').onclick=fit;
-$('clear').onclick=()=>{if(!busy&&confirm('¿Borrar todas las entregas de este reparto?')){stops=[];editing=null;focusedId=null;manualOrder=false;$('results').replaceChildren();$('search-form').reset();changed('Reparto borrado. Podés cargar nuevas entregas.');}};
+$('clear').onclick=()=>{if(!busy&&confirm('¿Borrar todas las entregas de este reparto?')){stops=[];editing=null;focusedId=null;manualOrder=false;addressList?.clear();$('results').replaceChildren();$('search-form').reset();changed('Reparto borrado. Podés cargar nuevas entregas.');}};
 function initMap(){
  try{if(!window.L)throw Error('No se pudo cargar la biblioteca local del mapa. Reiniciá con iniciar-prueba.cmd.');
   map=L.map('map').setView([-34.6037,-58.3816],11);markers=L.featureGroup().addTo(map);
@@ -149,6 +151,9 @@ trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
   if(position&&Date.now()-position.timestamp<=20000&&position.coords.accuracy<=60){origin={lat:position.coords.latitude,lon:position.coords.longitude};$('gps-label').textContent='Salida actualizada desde la entrega';searchHint();}
   changed('Entrega realizada. Continuamos con la siguiente parada de tu recorrido.');
  }
+});
+addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>30-stops.length,isBusy:()=>busy,message,
+ onFill(item){editing=null;$('address').value=item.address;$('recipient').value=item.recipient;$('notes').value=item.notes;$('results').replaceChildren();$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});}
 });
 initMap();render();searchHint();if(stops.length)fit();
 cloud=mountCloudStore({enabled:boot.backend==='supabase',storageKey:KEY+'-cloud',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,

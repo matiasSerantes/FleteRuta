@@ -4,7 +4,7 @@ Fecha: 4 de noviembre de 2026.
 
 ## Comprobaciones de esta versión
 
-- `npm test`: 45 pruebas aprobadas. Registro: `docs/REGISTRO.md`. Integración: `docs/INTEGRACION_SUPABASE.md`. Administración por aplicación, protección y MFA: `docs/USUARIOS_Y_ACCESOS.md`.
+- `npm test`: 47 pruebas aprobadas. Registro: `docs/REGISTRO.md`. Integración: `docs/INTEGRACION_SUPABASE.md`. Administración por aplicación, protección y MFA: `docs/USUARIOS_Y_ACCESOS.md`.
 - Recuperación: guardado automático, reapertura con entregas realizadas, cambios sin conexión conservados, protección de avances de la versión manual y serialización de cambios durante un guardado en curso. El seguimiento puede reanudarse automáticamente con GPS fresco; el aviso de llegada sigue requiriendo precisión y permanencia.
 - Seguimiento: permanencia cerca, precisión, antigüedad, velocidad, aviso único, posposición y cambio de destino, incluyendo dos entregas en el mismo lugar.
 - Flujo del cuadro de llegada con DOM: notificación mediante service worker simulado, Todavía no sin completar, confirmación de una sola entrega, enlace con únicamente el próximo destino, selección de Waze y finalización de la última entrega sin abrir un destino inexistente. Sin validación de notificaciones/GPS reales en un celular ni de navegación del sistema operativo.
@@ -29,3 +29,7 @@ Fecha: 4 de noviembre de 2026.
 - Pendiente: búsqueda Nominatim en navegador, GPS real y permisos, recuperación local, recorrido integrado de 30 entregas y apertura de Google Maps/Waze en celular por HTTPS.
 
 El 75 % del tablero es una estimación ponderada de implementación, no un porcentaje de pruebas aprobadas. La app está preparada para una prueba manual, sin declaración de aptitud para producción.
+
+## Revisión del 8 de noviembre
+
+47 pruebas aprobadas. Lista de clientes y diseño móvil verificados también en Chrome real de escritorio con viewport de celular y login/GPS simulados. Ver docs/PRUEBA_MIERCOLES.md para evidencia y pendientes reales; las limitaciones anteriores de GPS y correo real siguen vigentes.
