@@ -12,13 +12,25 @@ const KEY=boot.backend==='supabase'&&boot.userId?'fleteruta-user-'+boot.userId:l
 let stops=[],origin=null,busy=false,map,markers,line,tiles,editing=null,lastSearch=0,cache={},focusedId=null,manualOrder=false;
 const markerById=new Map();
 let trip=null,cloud=null,addressList=null;
+function showView(name,focus=false){
+ const labels={route:['Mi recorrido','Tu próxima entrega y el camino para llegar.'],clients:['Mis clientes','Agregá las direcciones antes de salir.'],account:['Mi cuenta','Tu cuenta y la ayuda para usar FleteRuta.']};
+ if(!labels[name])return;
+ document.body.dataset.view=name;
+ document.querySelectorAll('[data-app-view]').forEach(panel=>panel.hidden=panel.dataset.appView!==name);
+ document.querySelectorAll('.bottom-nav [data-view-target]').forEach(button=>{if(button.dataset.viewTarget===name)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+ $('view-title').textContent=labels[name][0];$('view-description').textContent=labels[name][1];
+ if(focus){$('view-title').focus({preventScroll:true});window.scrollTo?.({top:0,behavior:'instant'});}
+ if(name==='route')setTimeout(()=>map?.invalidateSize(),0);
+}
+document.querySelectorAll('[data-view-target]').forEach(button=>button.onclick=()=>showView(button.dataset.viewTarget,true));
+if(boot.username)$('account-email').textContent=boot.username;
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,30);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
 function searchHint(){$('search-area').textContent=$('search-scope').value==='argentina'?'Buscando solo en Argentina. Resultados ordenados por cercanía.':origin?'Solo Argentina, hasta 100 km de tu ubicación actual.':'Sin GPS: búsqueda en Buenos Aires y alrededores (hasta 100 km de CABA).';}
 try{manualOrder=JSON.parse(localStorage.getItem(KEY)||'{}').manualOrder===true;}catch{}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({stops,roundTrip:$('return').checked,cache,manualOrder}));cloud?.changed();}catch{message('No se pudo guardar en este navegador. Conservá la pestaña abierta.',true);}}
-function lock(value){busy=value;document.querySelectorAll('button,input,select').forEach(el=>el.disabled=value||el.dataset.unavailable==='true');}
+function lock(value){busy=value;document.querySelectorAll('button:not([data-view-target]),input,select,textarea').forEach(el=>el.disabled=value||el.dataset.unavailable==='true');}
 async function task(fn){if(busy)return;lock(true);try{const auth=await fetch('/auth/status').then(r=>r.json());if(!auth.authenticated||auth.mfaRequired){location.replace('/login');return;}await fn();}catch(e){message(e.message||'No se pudo completar la operación.',true);}finally{lock(false);}}
 async function json(url,signal){let response;try{response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000)});}catch(e){if(signal?.aborted)throw e;throw Error('No se pudo contactar el servicio. Revisá Internet y volvé a intentar.');}if(!response.ok)throw Error(`El servicio respondió ${response.status}. Probá nuevamente más tarde.`);return response.json();}
 function clearRoute(){$('summary').textContent='';if(line&&map){map.removeLayer(line);line=null;}}
@@ -34,6 +46,7 @@ function draw(){
  stops.forEach((s,i)=>{const marker=add(s,String(i+1),`${i+1}. ${s.address}${s.done?' · Entregada':''}`,s.done?'delivered-marker':'');marker.on('click',()=>selectStop(s.id,true));markerById.set(s.id,marker);});
 }
 function render(){
+ $('route-empty').hidden=stops.length>0;
  $('auto-order').hidden=!manualOrder;
  const pending=stops.filter(s=>!s.done).length;
  $('counter').textContent=`${stops.length} / 30`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
@@ -47,7 +60,9 @@ function render(){
    const unavailable=s.done||!stops[i+delta]||stops[i+delta].done;
    move.dataset.unavailable=String(unavailable);move.disabled=busy||unavailable;group.append(move);
   }
-  group.append(button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');}),button('Editar',()=>{editing=s.id;$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}));
+  const completed=button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');});if(!s.done)completed.className='primary';group.append(completed);
+  const more=node('details',null,'stop-options');more.append(node('summary','Más opciones'));
+  more.append(button('Editar',()=>{editing=s.id;showView('clients',true);$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{if(!confirm(`¿Eliminar esta parada?\n${s.address}\nLas otras entregas se conservan.`))return;stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}));group.append(more);
   actions.append(group);row.append(address,node('td',s.recipient||'—'),node('td',s.notes||'—'),state,actions);['Parada / dirección','Destinatario','Observaciones','Estado','Acciones'].forEach((label,index)=>row.children[index].dataset.label=label);$('stops').append(row);
  });draw();trip?.sync();
 }
@@ -140,16 +155,16 @@ $('retry-map').onclick=()=>{if(tiles){$('map-status').textContent='Reintentando 
 $('logout').onclick=async()=>{queue.cancel();trip?.stop();const response=await fetch('/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(response.ok)location.replace('/login');else message('No se pudo cerrar la sesión. Volvé a intentar.',true);};
 document.addEventListener('visibilitychange',async()=>{if(!document.hidden){try{const status=await fetch('/auth/status').then(r=>r.json());if(!status.authenticated||status.mfaRequired){queue.cancel();trip?.stop();location.replace('/login');}else if(trip&&!trip.active){void task(async()=>{await locate();trip.resume();});}}catch{}}});
 trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
- onStart(){manualOrder=true;changed('Seguimiento iniciado. Se conserva la secuencia de paradas para avanzar una por una.');},
+ onStart(){manualOrder=true;changed('Recorrido listo. Abrí la app para ir al cliente.');},
  onComplete(id,position){const stop=stops.find(s=>s.id===id);if(!stop||stop.done)return;stop.done=true;manualOrder=true;
   if(position&&Date.now()-position.timestamp<=20000&&position.coords.accuracy<=60){origin={lat:position.coords.latitude,lon:position.coords.longitude};$('gps-label').textContent='Salida actualizada desde la entrega';searchHint();}
   changed('Entrega realizada. Continuamos con la siguiente parada de tu recorrido.');
  }
 });
 addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>30-stops.length,isBusy:()=>busy,message,
- onFill(item){editing=null;$('address').value=item.address;$('recipient').value=item.recipient;$('notes').value=item.notes;$('results').replaceChildren();$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});}
+ onFill(item){showView('clients');editing=null;$('address').value=item.address;$('recipient').value=item.recipient;$('notes').value=item.notes;$('results').replaceChildren();$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});}
 });
-initMap();render();searchHint();if(stops.length)fit();
+showView('route');initMap();render();searchHint();if(stops.length)fit();
 cloud=mountCloudStore({enabled:boot.backend==='supabase',storageKey:KEY+'-cloud',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
  applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=snapshot.stops;manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}
 });

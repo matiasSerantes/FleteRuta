@@ -2,6 +2,8 @@
 
 Prototipo web para organizar repartos de hasta 30 entregas en Argentina. Versión TEST 0.3, con acceso privado y ubicación actual como salida.
 
+Interfaz para celular con letras grandes y barra fija: **Recorrido**, **Clientes** y **Mi cuenta**. Se abre directamente la próxima entrega y un botón para navegar. Ver [diseño y verificación en celular](docs/DISENO_CELULAR.md).
+
 Publicado en [FleteRuta](https://fleteruta.matilegen.workers.dev/) con Cloudflare Workers + Supabase compartido con HidroTrack: cuentas autorizadas por separado, datos propios y guardado automático del avance. Al volver se recuperan las entregas pendientes y se consulta una ubicación nueva para reanudar la detección de llegada. Ver [configuración y estado](docs/INTEGRACION_SUPABASE.md).
 
 El administrador dispone de [Usuarios y accesos](docs/USUARIOS_Y_ACCESOS.md), con separación por aplicación y verificación TOTP cuando está configurada en su cuenta.

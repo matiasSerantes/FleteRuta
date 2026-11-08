@@ -27,3 +27,5 @@ Web: https://fleteruta.matilegen.workers.dev/
 Chrome real en esta PC, con login y GPS simulados: vista de 390 × 844 sin desborde horizontal, botones de acciones de al menos 44 px, paradas en tarjetas. Vista de escritorio de 1366 px conserva la tabla. Captura local: `.private/mobile-390.png`. Repetible con `node scripts/mobile-smoke.mjs` (Chrome instalado, solo datos ficticios).
 
 Pendiente para dar por validada la prueba en calle: entrega real del correo, inicio de sesión de la persona invitada, permisos/GPS del teléfono y apertura de Maps/Waze. No se enviaron correos de prueba ni se crearon usuarios ficticios en Supabase.
+
+La barra inferior divide la app en Recorrido, Clientes y Mi cuenta. Abrir recorrido está en Recorrido; agregar direcciones y pegar listas está en Clientes; ayuda, sesión y borrar reparto están en Mi cuenta. Ver docs/DISENO_CELULAR.md.

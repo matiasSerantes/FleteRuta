@@ -35,3 +35,5 @@ El 75 % del tablero es una estimación ponderada de implementación, no un porce
 49 pruebas aprobadas. Lista de clientes y diseño móvil verificados también en Chrome real de escritorio con viewport de celular y login/GPS simulados. Ver docs/PRUEBA_MIERCOLES.md para evidencia y pendientes reales; las limitaciones anteriores de GPS y correo real siguen vigentes.
 
 Navegación unificada: selector de app y un solo enlace de recorrido. Ver docs/NAVEGACION.md para límites y verificación.
+
+Diseño simplificado para celular: docs/DISENO_CELULAR.md. Revisión Chrome a 360 y 390 px, cambio entre tres secciones, letras y controles grandes, botón principal visible y confirmación de borrado.

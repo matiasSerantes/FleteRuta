@@ -17,7 +17,8 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
   const plan=planFor();$('trip-go').hidden=!plan.url;
   if(plan.url)$('trip-go').href=plan.url;else $('trip-go').removeAttribute('href');
-  $('trip-go').textContent=`Abrir recorrido en ${$('navigator-app').value==='waze'?'Waze':'Google Maps'} ↗`;
+  $('trip-go').textContent='Abrir recorrido ↗';
+  $('trip-go').setAttribute('aria-label',`Abrir recorrido en ${$('navigator-app').value==='waze'?'Waze':'Google Maps'}`);
   $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze acepta un destino por enlace.':mobile()?'Enlaces de Google Maps: hasta 4 destinos en navegador móvil.':'Enlaces de Google Maps: hasta 10 destinos.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
   if(active&&!target)stop('Reparto completado. Seguimiento detenido.');
  }

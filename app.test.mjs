@@ -33,6 +33,8 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
  const checkMapNumbers=()=>{for(const [i,address] of rowAddresses().entries()){const marker=[...document.querySelectorAll('.leaflet-marker-icon')].find(el=>el.title===`${i+1}. ${address}`||el.title===`${i+1}. ${address} · Entregada`);assert.ok(marker,`Marcador ${i+1}: ${address}`);assert.equal(marker.textContent,String(i+1));}};
  try{
   await import('./app.js');await until(()=>$('gps-label').textContent==='Ubicación actual lista'&&!$('search-button').disabled);
+  assert.equal($('view-route').hidden,false);assert.equal($('view-clients').hidden,true);assert.equal($('view-account').hidden,true);
+  document.querySelector('.bottom-nav [data-view-target="clients"]').click();assert.equal($('view-clients').hidden,false);assert.equal($('view-route').hidden,true);assert.equal($('view-title').textContent,'Mis clientes');
   $('address-list').value='Lejana 1234\tCliente lejano\tPortón azul\nCercana 1234\nIntermedia 1234';$('list-load').click();
   assert.equal($('recipient').value,'Cliente lejano');assert.equal($('notes').value,'Portón azul');
   for(const address of ['Lejana 1234','Cercana 1234','Intermedia 1234']){
@@ -63,5 +65,14 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
   assert.equal(move(1,'↓ Bajar').disabled,true);assert.equal(move(2,'↑ Subir').disabled,true);
   const saved=JSON.parse(localStorage.getItem('fleteruta-test-v1'));assert.deepEqual(saved.stops.map(s=>s.address),rowAddresses());
   assert.ok(document.querySelector('.route-column .map-panel').compareDocumentPosition(document.querySelector('.deliveries-panel'))&window.Node.DOCUMENT_POSITION_FOLLOWING);
+  document.querySelector('.bottom-nav [data-view-target="account"]').click();assert.equal($('view-account').hidden,false);assert.equal($('view-clients').hidden,true);
+  document.querySelector('.bottom-nav [data-view-target="route"]').click();assert.equal($('view-route').hidden,false);assert.equal($('view-title').textContent,'Mi recorrido');assert.equal(document.querySelectorAll('.bottom-nav [aria-current="page"]').length,1);
+  const firstRow=document.querySelector('#stops tr');firstRow.querySelector('.stop-options').open=true;[...firstRow.querySelectorAll('button')].find(b=>b.textContent==='Editar').click();assert.equal($('view-clients').hidden,false);assert.equal($('address').value,rowAddresses()[0]);
+  document.querySelector('.bottom-nav [data-view-target="route"]').click();
+  const confirmation=Object.getOwnPropertyDescriptor(globalThis,'confirm');
+  try{
+   Object.defineProperty(globalThis,'confirm',{value:()=>false,writable:true,configurable:true});[...document.querySelector('#stops tr').querySelectorAll('button')].find(b=>b.textContent==='Eliminar').click();assert.equal(rowAddresses().length,3);
+   globalThis.confirm=()=>true;[...document.querySelector('#stops tr').querySelectorAll('button')].find(b=>b.textContent==='Eliminar').click();assert.equal(rowAddresses().length,2);checkMapNumbers();
+  }finally{if(confirmation)Object.defineProperty(globalThis,'confirm',confirmation);else delete globalThis.confirm;}
  }finally{globalThis.fetch=originalFetch;window.happyDOM.abort();window.close();}
 });

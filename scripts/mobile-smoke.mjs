@@ -30,9 +30,22 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
  for(let i=0;i<100;i++){if(await evaluate(`document.querySelectorAll('#stops tr').length===2 && document.getElementById('gps-label').textContent==='Ubicación actual lista'`))break;await new Promise(r=>setTimeout(r,100));}
- const mobile=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,rows:document.querySelectorAll('#stops tr').length,rowDisplay:getComputedStyle(document.querySelector('#stops tr')).display,actions:[...document.querySelectorAll('#stops .actions button')].map(b=>({width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})),list:!!document.getElementById('list-load')})`);
+ const mobile=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,rows:document.querySelectorAll('#stops tr').length,rowDisplay:getComputedStyle(document.querySelector('#stops tr')).display,actions:[...document.querySelectorAll('#stops .actions button')].filter(b=>b.getBoundingClientRect().height>0).map(b=>({width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})),list:!!document.getElementById('list-load')})`);
  assert.equal(mobile.rows,2);assert.equal(mobile.rowDisplay,'block');assert.ok(mobile.content<=mobile.width,JSON.stringify(mobile));assert.ok(mobile.actions.every(b=>b.height>=44));assert.ok(mobile.list);
  assert.equal(await evaluate(`document.querySelectorAll('a[href*="google.com/maps/dir"],a[href*="waze.com/ul"]').length`),1);
+ for(const width of [360,390]){
+  await send('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:true});
+  await evaluate(`window.scrollTo(0,0)`);
+  const readability=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,buttonSize:parseFloat(getComputedStyle(document.getElementById('trip-go')).fontSize),targetSize:parseFloat(getComputedStyle(document.getElementById('trip-target')).fontSize),nav:document.querySelector('.bottom-nav').getBoundingClientRect().toJSON(),navigation:document.getElementById('trip-go').getBoundingClientRect().toJSON()})`);
+  assert.ok(readability.content<=width,JSON.stringify(readability));assert.ok(readability.buttonSize>=18);assert.ok(readability.targetSize>=20);assert.ok(readability.navigation.bottom<=readability.nav.top,'Main navigation must be visible above the bottom bar');
+  await mkdir(path.join(root,'.private'),{recursive:true});await writeFile(path.join(root,'.private',`home-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+  for(const name of ['clients','account','route']){
+   await evaluate(`document.querySelector('.bottom-nav [data-view-target="${name}"]').click()`);
+   assert.equal(await evaluate(`document.getElementById('view-${name}').hidden`),false);
+   assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),'Overflow in '+name);
+  }
+ }
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await mkdir(path.join(root,'.private'),{recursive:true});await evaluate(`document.querySelector('.trip-panel').scrollIntoView()`);
  await writeFile(path.join(root,'.private','navigation-390.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  await mkdir(path.join(root,'.private'),{recursive:true});await evaluate(`document.querySelector('.deliveries-panel').scrollIntoView()`);
