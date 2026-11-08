@@ -9,8 +9,10 @@ import assert from 'node:assert/strict';
 const root=path.resolve(fileURLToPath(new URL('../',import.meta.url)));
 const browserPath=process.env.CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const profile=await mkdtemp(path.join(tmpdir(),'fleteruta-browser-'));
+let authFormTest=false,signupWrites=0;
 const server=createServer(async(req,res)=>{
- if(req.url==='/auth/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({authenticated:true}));return;}
+ if(req.url==='/auth/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(authFormTest?{authenticated:false,configured:true,backend:'supabase'}:{authenticated:true}));return;}
+ if(req.url==='/auth/signup'&&authFormTest){signupWrites++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,pendingApproval:true}));return;}
  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname),file=path.resolve(root,'.'+(name==='/'?'/index.html':name));
  if(!file.startsWith(root+path.sep)){res.writeHead(404).end();return;}
  try{res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await readFile(file));}catch{res.writeHead(404).end();}
@@ -53,4 +55,13 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
  const desktop=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,rowDisplay:getComputedStyle(document.querySelector('#stops tr')).display})`);assert.equal(desktop.rowDisplay,'table-row');assert.ok(desktop.content<=desktop.width);
  console.log(JSON.stringify({mobile,desktop,screenshot:'.private/mobile-390.png'},null,2));
+ authFormTest=true;await send('Emulation.setDeviceMetricsOverride',{width:360,height:800,deviceScaleFactor:1,mobile:true});await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/login.html`});
+ for(let i=0;i<100;i++){if(await evaluate(`!!document.getElementById('toggle-signup') && !document.getElementById('toggle-signup').hidden`))break;await new Promise(r=>setTimeout(r,50));}
+ await evaluate(`document.getElementById('toggle-signup').click();document.getElementById('full-name').value='Persona de prueba';document.getElementById('username').value='fake@example.com';document.getElementById('password').value='12345678';document.getElementById('confirm-password').value='12345678';document.getElementById('login-form').requestSubmit()`);
+ assert.equal(signupWrites,0);assert.equal(await evaluate(`document.getElementById('auth-feedback').open`),true);assert.match(await evaluate(`document.getElementById('feedback-text').textContent`),/8 caracteres.*al menos 12/);
+ assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth`));await writeFile(path.join(root,'.private','signup-short-password.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+ await evaluate(`document.getElementById('feedback-close').click();document.getElementById('password').value='fake-password-long-2026';document.getElementById('confirm-password').value='fake-password-long-2026';document.getElementById('login-form').requestSubmit()`);
+ for(let i=0;i<100;i++){if(await evaluate(`document.getElementById('feedback-title').textContent==='Revisá tu correo'`))break;await new Promise(r=>setTimeout(r,50));}
+ assert.equal(signupWrites,1);assert.equal(await evaluate(`document.getElementById('auth-feedback').open`),true);assert.match(await evaluate(`document.getElementById('feedback-text').textContent`),/Solicitud recibida/);await writeFile(path.join(root,'.private','signup-success.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+ console.log('Chrome signup: short password blocked with visible dialog; simulated success shows email instructions. No emails sent.');
 }finally{socket?.close();browser.kill();server.close();}

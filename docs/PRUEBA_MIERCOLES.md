@@ -22,7 +22,7 @@ Web: https://fleteruta.matilegen.workers.dev/
 
 ## Verificado el 8 de noviembre
 
-51 pruebas automáticas aprobadas. Incluyen lista con columnas, límites sin truncar clientes, recuperación de pendientes, confirmación consecutiva en la interfaz, orden y marcadores, guardado y recuperación del avance, aislamiento de cuentas y administración.
+52 pruebas automáticas aprobadas. Incluyen lista con columnas, límites sin truncar clientes, recuperación de pendientes, confirmación consecutiva en la interfaz, orden y marcadores, guardado y recuperación del avance, aislamiento de cuentas y administración.
 
 Chrome real en esta PC, con login y GPS simulados: vista de 390 × 844 sin desborde horizontal, botones de acciones de al menos 44 px, paradas en tarjetas. Vista de escritorio de 1366 px conserva la tabla. Captura local: `.private/mobile-390.png`. Repetible con `node scripts/mobile-smoke.mjs` (Chrome instalado, solo datos ficticios).
 

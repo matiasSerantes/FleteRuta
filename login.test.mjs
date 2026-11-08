@@ -14,6 +14,24 @@ test('login mantiene el segundo factor y envía únicamente el código al verifi
  }finally{globalThis.fetch=original;window.close();}
 });
 
+test('registro muestra cartel por datos faltantes, clave corta, error de servidor y falta de conexión',async()=>{
+ const window=new Window({url:'https://fleteruta.example/login'}),document=window.document;
+ document.write((await readFile(new URL('./login.html',import.meta.url),'utf8')).replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
+ for(const [key,value] of Object.entries({document,location:window.location,history:window.history}))Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
+ const original=globalThis.fetch;let writes=0,mode='rate';globalThis.fetch=async(path,options)=>{if(options?.method==='POST'){writes++;if(mode==='network')throw new TypeError('fetch failed');if(mode==='timeout')throw new DOMException('timeout','TimeoutError');if(mode==='invalid')return new Response('invalid upstream',{status:502});return Response.json({error:'Se alcanzó el límite de solicitudes. Esperá unos minutos.'},{status:429});}return Response.json({configured:true,backend:'supabase',authenticated:false});};
+ try{
+  await import('./login.js?feedback-tests');const $=id=>document.getElementById(id);$('toggle-signup').click();assert.equal($('login-form').noValidate,true);assert.equal($('password-help').hidden,false);
+  const submit=()=>$('login-form').onsubmit(new window.Event('submit',{cancelable:true}));
+  for(const [values,expected] of [[{},/nombre y apellido/],[{'full-name':'Persona mayor'},/correo válido/],[{username:'test@example.com',password:'12345678','confirm-password':'12345678'},/8 caracteres.*al menos 12/],[{password:'contraseña-larga-123','confirm-password':'otra-clave'},/no coinciden/]]){
+   for(const [id,value] of Object.entries(values))$(id).value=value;await submit();assert.equal(writes,0);assert.equal($('auth-feedback').open,true);assert.match($('feedback-text').textContent,expected);$('feedback-close').click();
+  }
+  $('confirm-password').value=$('password').value;
+  for(const [value,expected] of [['rate',/límite/],['network',/Revisá Internet/],['timeout',/tardó demasiado/],['invalid',/servidor no respondió/]]){
+   mode=value;await submit();assert.match($('feedback-text').textContent,expected);assert.equal($('auth-feedback').open,true);assert.equal($('submit-login').disabled,false);assert.equal($('submit-login').textContent,'Crear cuenta');assert.equal($('password').value,'contraseña-larga-123');$('feedback-close').click();
+  }
+ }finally{globalThis.fetch=original;window.close();}
+});
+
 test('regreso del correo queda en FleteRuta, limpia tokens y explica confirmación o error sin dar acceso',async()=>{
  for(const [hash,expected] of [['#type=signup&access_token=fake-confirmation-token&refresh_token=fake-refresh-token',/Correo confirmado/],['#error=access_denied&error_code=otp_expired',/No se pudo confirmar/]]){
   const window=new Window({url:'https://fleteruta.example/login'+hash}),document=window.document;

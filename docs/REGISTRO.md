@@ -12,4 +12,8 @@ El trigger existente de Supabase crea el perfil común con el nombre. Eso no asi
 
 El envío y los límites de correo corresponden a la configuración de Supabase. Se verificó el flujo con respuestas simuladas, sin crear usuarios reales ni enviar correos de prueba. La entrega del correo y el registro real de la persona invitada quedan pendientes de esa prueba.
 
-51 pruebas automáticas aprobadas, incluidas validación, contraseñas distintas, registro sin cookies ni permisos, límites de correo, bloqueo de otro origen y conservación del login con MFA.
+52 pruebas automáticas aprobadas, incluidas validación, contraseñas distintas, registro sin cookies ni permisos, límites de correo, bloqueo de otro origen y conservación del login con MFA.
+
+El formulario valida sus datos de forma explícita, sin depender de globos de validación del navegador. Muestra cartel modal y mensaje persistente para nombre o correo faltantes, clave corta, confirmación distinta, errores del servidor, falta de Internet y espera agotada. La clave requiere al menos 12 caracteres y ese requisito se ve antes de enviar. Durante el envío muestra Creando cuenta y evita envíos duplicados; al recibir respuesta satisfactoria muestra Revisá tu correo. No se interpreta la respuesta genérica como acceso concedido.
+
+Chrome real a 360 px: se reprodujo requestSubmit con dos claves de 8 caracteres, sin enviar solicitudes; apareció el cartel con el motivo. Respuesta de registro simulada: apareció el cartel de correo. Capturas .private/signup-short-password.png y .private/signup-success.png. Sin altas reales ni correos enviados por esta comprobación.
