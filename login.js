@@ -1,4 +1,5 @@
-const $=id=>document.getElementById(id),token=new URLSearchParams(location.hash.slice(1)).get('setup');
+const $=id=>document.getElementById(id),returnParams=new URLSearchParams(location.hash.slice(1)),token=returnParams.get('setup');
+const emailConfirmed=returnParams.get('type')==='signup'&&!!returnParams.get('access_token'),confirmationError=returnParams.has('error');
 history.replaceState(null,'','/login');
 let state={},setup=false,mfa=false,signup=false;
 function showSignup(value){
@@ -13,9 +14,11 @@ try{
  if(state.authenticated){if(state.mfaRequired)showMFA();else location.replace('/');}
  if(state.backend==='supabase'){
   setup=false;$('username').type='email';$('username').removeAttribute('pattern');$('username').removeAttribute('minlength');$('username').maxLength=254;document.querySelector('label[for="username"]').textContent='Correo electrónico';
-  if(!mfa)$('login-description').textContent='Ingresá con tu cuenta de Supabase habilitada para FleteRuta.';
+  if(!mfa)$('login-description').textContent='Ingresá con tu correo y contraseña de FleteRuta.';
   $('toggle-signup').hidden=mfa;$('toggle-signup').onclick=()=>showSignup(!signup);
   document.querySelector('.login-panel>p:last-child').textContent='Crear una cuenta no habilita las aplicaciones. El administrador asigna los accesos.';
+  if(!state.authenticated&&emailConfirmed)$('login-message').textContent='Correo confirmado. Ingresá con tu correo y contraseña. Si tu acceso está pendiente, avisale al administrador para que te habilite Solo FleteRuta.';
+  if(!state.authenticated&&confirmationError)$('login-message').textContent='No se pudo confirmar el correo. El enlace puede haber vencido o ya haberse usado. Si ya confirmaste tu cuenta, intentá ingresar con tu correo y contraseña.';
  }
  if(!state.configured){if(setup){$('login-title').textContent='Crear tu usuario privado';$('login-description').textContent='Elegí una contraseña de al menos 12 caracteres. Este enlace sirve una sola vez.';$('password').minLength=12;$('password').autocomplete='new-password';$('confirm-wrap').hidden=false;$('confirm-password').required=true;$('submit-login').textContent='Crear usuario e ingresar';}else{$('login-description').textContent='Primera configuración: abrí el enlace privado de la ventana del servidor.';$('submit-login').disabled=true;}}
 }catch(error){$('login-message').textContent=error.message;$('submit-login').disabled=true;}

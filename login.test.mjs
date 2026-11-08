@@ -14,6 +14,17 @@ test('login mantiene el segundo factor y envía únicamente el código al verifi
  }finally{globalThis.fetch=original;window.close();}
 });
 
+test('regreso del correo queda en FleteRuta, limpia tokens y explica confirmación o error sin dar acceso',async()=>{
+ for(const [hash,expected] of [['#type=signup&access_token=fake-confirmation-token&refresh_token=fake-refresh-token',/Correo confirmado/],['#error=access_denied&error_code=otp_expired',/No se pudo confirmar/]]){
+  const window=new Window({url:'https://fleteruta.example/login'+hash}),document=window.document;
+  document.write((await readFile(new URL('./login.html',import.meta.url),'utf8')).replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
+  for(const [key,value] of Object.entries({document,location:window.location,history:window.history}))Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
+  const original=globalThis.fetch,requests=[];globalThis.fetch=async(path,options)=>{requests.push({path,method:options?.method||'GET'});return Response.json({configured:true,backend:'supabase',authenticated:false});};
+  try{await import('./login.js?email-return='+encodeURIComponent(hash));assert.equal(window.location.pathname,'/login');assert.equal(window.location.hash,'');assert.match(document.getElementById('login-message').textContent,expected);assert.deepEqual(requests,[{path:'/auth/status',method:'GET'}]);assert.equal(document.getElementById('submit-login').textContent,'Ingresar');}
+  finally{globalThis.fetch=original;window.close();}
+ }
+});
+
 test('crear cuenta solicita nombre y confirmación, muestra aprobación pendiente sin entrar',async()=>{
  const window=new Window({url:'https://fleteruta.example/login'}),document=window.document;
  document.write((await readFile(new URL('./login.html',import.meta.url),'utf8')).replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
