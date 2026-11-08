@@ -1,5 +1,5 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/notifications-sw.js','/estado-proyecto.js']);
-const PRIVATE=new Set(['/','/index.html','/admin','/admin.html','/estado-proyecto.html']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/notifications-sw.js','/estado-proyecto.js']);
+const PRIVATE=new Set(['/','/index.html','/apps','/apps.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
 const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};
 export function validateRoute(body){
@@ -32,6 +32,7 @@ export async function handle(request,env,upstream=fetch){
   const access=await accessStatus(token);return {user,token,isAdmin:access.is_admin,mfaRequired:access.mfa_required};
  }
  async function accessStatus(token){const r=await api('/rest/v1/rpc/fleteruta_access_status',{token,method:'POST',body:{}});if(!r.ok)throw Error('access_status_unavailable');return r.json();}
+ async function portalApps(token){const r=await api('/rest/v1/rpc/fleteruta_portal_apps',{token,method:'POST',body:{}});if(!r.ok)throw Error('portal_unavailable');return r.json();}
  async function bodyJSON(limit){
   if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Object.assign(Error('Se requiere JSON.'),{status:415});
   const reader=request.body?.getReader();if(!reader)return {};let size=0,chunks=[];
@@ -57,14 +58,22 @@ export async function handle(request,env,upstream=fetch){
    if(!response.ok)return json({error:response.status===429?'Demasiados intentos. Esperá antes de volver a ingresar.':'Correo o contraseña incorrectos.'},response.status===429?429:401);
    const session=await response.json(),member=await api('/rest/v1/fleteruta_members?'+new URLSearchParams({user_id:'eq.'+session.user.id,enabled:'eq.true',select:'user_id'}),{token:session.access_token});
    if(!member.ok)throw Error('membership_unavailable');
-   if(!(await member.json()).length){await api('/auth/v1/logout?scope=local',{token:session.access_token,method:'POST'});return json({error:'Tu cuenta no está habilitada para FleteRuta.'},403);}
-   const access=await accessStatus(session.access_token);setTokens(session);return json({ok:true,mfaRequired:access.mfa_required});
+   if(!(await member.json()).length){
+    const access=await accessStatus(session.access_token),apps=access.mfa_required?null:await portalApps(session.access_token);
+    await api('/auth/v1/logout?scope=local',{token:session.access_token,method:'POST'});
+    if(apps?.hidrotrack)return json({ok:true,redirectTo:'https://hidrotrack.matilegen.workers.dev/'});
+    return json({error:access.mfa_required?'Esta cuenta no tiene FleteRuta habilitado. Ingresá a HidroTrack para verificar tu acceso.':'Tu cuenta no está habilitada para FleteRuta. Avisale al administrador.'},403);
+   }
+   const access=await accessStatus(session.access_token);setTokens(session);return json({ok:true,mfaRequired:access.mfa_required,redirectTo:'/apps'});
   }
   if(url.pathname==='/auth/logout'&&request.method==='POST'){
    clearTokens();if(cookies.fr_access){const r=await api('/auth/v1/logout?scope=local',{token:cookies.fr_access,method:'POST'});if(!r.ok&&r.status!==401&&r.status!==403)return json({error:'Sesión cerrada en este navegador; no se pudo revocar en el servidor.'},502);}return json({ok:true});
   }
   if(url.pathname==='/auth/status'&&request.method==='GET'){
    const auth=await authenticate();return json({configured:true,backend:'supabase',authenticated:!!auth,...(auth?{userId:auth.user.id,username:auth.user.email,isAdmin:auth.isAdmin,mfaRequired:auth.mfaRequired}:{})});
+  }
+  if(url.pathname==='/auth/apps'&&request.method==='GET'){
+   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión.'},401);if(auth.mfaRequired)return json({error:'Completá la verificación de tu cuenta.'},403);return json(await portalApps(auth.token));
   }
   if(url.pathname==='/auth/mfa'&&request.method==='POST'){
    const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión para verificar el código.'},401);
@@ -73,7 +82,7 @@ export async function handle(request,env,upstream=fetch){
    const challenge=await api(`/auth/v1/factors/${factor.id}/challenge`,{token:auth.token,method:'POST',body:{}});if(!challenge.ok)return json({error:'No se pudo iniciar la verificación.'},400);
    const challengeData=await challenge.json();const verified=await api(`/auth/v1/factors/${factor.id}/verify`,{token:auth.token,method:'POST',body:{challenge_id:challengeData.id,code:body.code}});
    if(!verified.ok)return json({error:'Código incorrecto o vencido. Probá con el código actual de tu autenticador.'},400);
-   setTokens(await verified.json());return json({ok:true});
+   setTokens(await verified.json());return json({ok:true,redirectTo:'/apps'});
   }
   if(url.pathname.startsWith('/api/admin/')){
    const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión.'},401);if(!auth.isAdmin||auth.mfaRequired)return json({error:'Acceso exclusivo del administrador. Completá la verificación de tu cuenta.'},403);
@@ -106,6 +115,7 @@ export async function handle(request,env,upstream=fetch){
   if(PRIVATE.has(url.pathname)){const auth=await authenticate();if(!auth||auth.mfaRequired)return redirect('/login');if((url.pathname==='/admin'||url.pathname==='/admin.html')&&!auth.isAdmin)return json({error:'Acceso exclusivo del administrador.'},403);}
   if(!PRIVATE.has(url.pathname)&&!PUBLIC.has(url.pathname)&&!LIBRARY.has(url.pathname))return json({error:'No encontrado.'},404);
   const assetURL=new URL(url);if(url.pathname==='/')assetURL.pathname='/index.html';if(url.pathname==='/login')assetURL.pathname='/login.html';if(url.pathname==='/admin')assetURL.pathname='/admin.html';
+  if(url.pathname==='/apps')assetURL.pathname='/apps.html';
   const asset=await env.ASSETS.fetch(new Request(assetURL,{method:request.method}));
   headers.set('Content-Type',MIME[assetURL.pathname.split('.').at(-1)]||'application/octet-stream');
   return new Response(asset.body,{status:asset.status,headers});

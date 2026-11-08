@@ -13,6 +13,7 @@ let authFormTest=false,signupWrites=0;
 const server=createServer(async(req,res)=>{
  if(req.url==='/auth/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(authFormTest?{authenticated:false,configured:true,backend:'supabase'}:{authenticated:true}));return;}
  if(req.url==='/auth/signup'&&authFormTest){signupWrites++;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,pendingApproval:true}));return;}
+ if(req.url==='/auth/apps'&&authFormTest){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({fleteruta:true,hidrotrack:true}));return;}
  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname),file=path.resolve(root,'.'+(name==='/'?'/index.html':name));
  if(!file.startsWith(root+path.sep)){res.writeHead(404).end();return;}
  try{res.setHeader('Content-Type',({'.js':'text/javascript','.mjs':'text/javascript','.html':'text/html','.css':'text/css','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(await readFile(file));}catch{res.writeHead(404).end();}
@@ -64,4 +65,8 @@ try{
  for(let i=0;i<100;i++){if(await evaluate(`document.getElementById('feedback-title').textContent==='Revisá tu correo'`))break;await new Promise(r=>setTimeout(r,50));}
  assert.equal(signupWrites,1);assert.equal(await evaluate(`document.getElementById('auth-feedback').open`),true);assert.match(await evaluate(`document.getElementById('feedback-text').textContent`),/Solicitud recibida/);await writeFile(path.join(root,'.private','signup-success.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  console.log('Chrome signup: short password blocked with visible dialog; simulated success shows email instructions. No emails sent.');
+ await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/apps.html`});
+ for(let i=0;i<100;i++){if(await evaluate(`!!document.getElementById('open-hidrotrack') && !document.getElementById('open-hidrotrack').hidden`))break;await new Promise(r=>setTimeout(r,50));}
+ assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth && !document.getElementById('open-fleteruta').hidden && document.getElementById('open-fleteruta').getBoundingClientRect().height>=54`));
+ await writeFile(path.join(root,'.private','apps-360.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));console.log('Chrome app selector: two authorized applications fit at 360 px.');
 }finally{socket?.close();browser.kill();server.close();}

@@ -24,6 +24,7 @@ function showView(name,focus=false){
 }
 document.querySelectorAll('[data-view-target]').forEach(button=>button.onclick=()=>showView(button.dataset.viewTarget,true));
 if(boot.username)$('account-email').textContent=boot.username;
+if($('apps-link'))$('apps-link').hidden=boot.backend!=='supabase';
 try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,30);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
