@@ -50,6 +50,7 @@ function render(){
  $('route-empty').hidden=stops.length>0;
  $('auto-order').hidden=!manualOrder;
  const pending=stops.filter(s=>!s.done).length;
+ $('metric-pending').textContent=String(pending);$('metric-done').textContent=String(stops.length-pending);$('metric-total').textContent=String(stops.length);
  $('counter').textContent=`${stops.length} / 30`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
  stops.forEach((s,i)=>{
   const row=node('tr',null,'delivery-row'+(s.done?' done':'')+(s.id===focusedId?' selected':''));row.dataset.id=s.id;

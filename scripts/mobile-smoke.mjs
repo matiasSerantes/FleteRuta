@@ -55,6 +55,14 @@ try{
  await writeFile(path.join(root,'.private','mobile-390.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  await send('Emulation.setDeviceMetricsOverride',{width:1366,height:900,deviceScaleFactor:1,mobile:false});
  const desktop=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,rowDisplay:getComputedStyle(document.querySelector('#stops tr')).display})`);assert.equal(desktop.rowDisplay,'table-row');assert.ok(desktop.content<=desktop.width);
+ for(const width of [1024,1280,1366,1920]){
+  await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await evaluate(`document.querySelector('.bottom-nav [data-view-target="route"]').click();window.scrollTo(0,0)`);
+  const layout=await evaluate(`({width:innerWidth,content:document.documentElement.scrollWidth,nav:document.querySelector('.bottom-nav').getBoundingClientRect().toJSON(),map:document.getElementById('map').getBoundingClientRect().toJSON(),table:document.querySelector('.deliveries-panel').getBoundingClientRect().toJSON(),metrics:getComputedStyle(document.querySelector('.desktop-metrics')).display,total:document.getElementById('metric-total').textContent})`);
+  assert.ok(layout.content<=width,JSON.stringify(layout));
+  if(width>=1100){assert.equal(layout.nav.x,0);assert.equal(layout.nav.width,228);assert.equal(layout.metrics,'grid');assert.equal(layout.total,'2');assert.ok(layout.map.width>400);assert.ok(layout.table.width>layout.map.width);}
+  for(const view of ['clients','account','route']){await evaluate(`document.querySelector('.bottom-nav [data-view-target="${view}"]').click()`);assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth`),'Desktop overflow '+view+' '+width);}
+  if(width===1366){await writeFile(path.join(root,'.private','desktop-route.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));await evaluate(`document.querySelector('.bottom-nav [data-view-target="clients"]').click()`);await writeFile(path.join(root,'.private','desktop-clients.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));}
+ }
  console.log(JSON.stringify({mobile,desktop,screenshot:'.private/mobile-390.png'},null,2));
  authFormTest=true;await send('Emulation.setDeviceMetricsOverride',{width:360,height:800,deviceScaleFactor:1,mobile:true});await send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/login.html`});
  for(let i=0;i<100;i++){if(await evaluate(`!!document.getElementById('toggle-signup') && !document.getElementById('toggle-signup').hidden`))break;await new Promise(r=>setTimeout(r,50));}

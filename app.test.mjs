@@ -44,6 +44,7 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
    $('results').querySelector('button').click();await until(()=>rowAddresses().includes(address)&&!$('search-button').disabled);
   }
   assert.deepEqual(rowAddresses(),['Cercana 1234','Intermedia 1234','Lejana 1234']);checkMapNumbers();
+  assert.equal($('metric-total').textContent,'3');assert.equal($('metric-pending').textContent,'3');assert.equal($('metric-done').textContent,'0');
   assert.equal($('list-load').hidden,false);assert.deepEqual(JSON.parse(localStorage.getItem('fleteruta-test-v1-address-list')),[]);
   assert.equal(document.querySelector('#stops tr td:last-child').dataset.label,'Acciones');
   assert.match(document.querySelectorAll('#stops tr')[2].textContent,/Cliente lejano/);
@@ -62,6 +63,7 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
   [...document.querySelectorAll('#stops .actions button')].find(b=>b.textContent==='✓ Entregada').click();
   assert.deepEqual(rowAddresses(),['Intermedia 1234','Lejana 1234','Cercana 1234']);checkMapNumbers();
   await until(()=>$('route-state').dataset.state==='ready');assert.match($('delivery-count').textContent,/2 pendientes/);assert.equal(document.querySelectorAll('#stops tr.done').length,1);
+  assert.equal($('metric-pending').textContent,'2');assert.equal($('metric-done').textContent,'1');
   assert.equal(move(1,'↓ Bajar').disabled,true);assert.equal(move(2,'↑ Subir').disabled,true);
   const saved=JSON.parse(localStorage.getItem('fleteruta-test-v1'));assert.deepEqual(saved.stops.map(s=>s.address),rowAddresses());
   assert.ok(document.querySelector('.route-column .map-panel').compareDocumentPosition(document.querySelector('.deliveries-panel'))&window.Node.DOCUMENT_POSITION_FOLLOWING);
