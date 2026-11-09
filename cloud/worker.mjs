@@ -4,8 +4,8 @@ const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/la
 const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};
 export function validateRoute(body){
  if(!body||typeof body!=='object')return false;
- if(!Array.isArray(body.stops)||body.stops.length>30||typeof body.roundTrip!=='boolean'||typeof body.manualOrder!=='boolean'||!Number.isInteger(body.revision)||body.revision<0)return false;
- const ids=new Set();return body.stops.every(s=>{if(!s||typeof s.id!=='string'||!s.id.length||s.id.length>80||ids.has(s.id))return false;ids.add(s.id);return typeof s.address==='string'&&s.address.length>0&&s.address.length<=2500&&Number.isFinite(s.lat)&&Math.abs(s.lat)<=90&&Number.isFinite(s.lon)&&Math.abs(s.lon)<=180&&typeof s.done==='boolean'&&(s.recipient===undefined||typeof s.recipient==='string'&&s.recipient.length<=150)&&(s.notes===undefined||typeof s.notes==='string'&&s.notes.length<=300);});
+ if(!Array.isArray(body.stops)||body.stops.length>40||typeof body.roundTrip!=='boolean'||typeof body.manualOrder!=='boolean'||!Number.isInteger(body.revision)||body.revision<0)return false;
+ const ids=new Set();return body.stops.every(s=>{if(!s||typeof s.id!=='string'||!s.id.length||s.id.length>80||ids.has(s.id))return false;ids.add(s.id);return typeof s.address==='string'&&s.address.length>0&&s.address.length<=2500&&Number.isFinite(s.lat)&&Math.abs(s.lat)<=90&&Number.isFinite(s.lon)&&Math.abs(s.lon)<=180&&typeof s.done==='boolean'&&(s.shortAddress===undefined||typeof s.shortAddress==='string'&&s.shortAddress.length>0&&s.shortAddress.length<=300)&&(s.returnPoint===undefined||typeof s.returnPoint==='boolean')&&(s.recipient===undefined||typeof s.recipient==='string'&&s.recipient.length<=150)&&(s.notes===undefined||typeof s.notes==='string'&&s.notes.length<=300);});
 }
 export async function handle(request,env,upstream=fetch){
  const url=new URL(request.url),headers=new Headers({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"});
@@ -104,7 +104,7 @@ export async function handle(request,env,upstream=fetch){
     if(!r.ok)throw Error('route_read_failed');const routes=await r.json();return json({route:routes[0]||null});
    }
    if(request.method==='PUT'){
-    const body=await bodyJSON(131072);if(!validateRoute(body))return json({error:'Reparto inválido. Se admiten hasta 30 paradas.'},400);
+    const body=await bodyJSON(131072);if(!validateRoute(body))return json({error:'Reparto inválido. Se admiten hasta 40 paradas.'},400);
     const r=await api('/rest/v1/rpc/fleteruta_save_route',{method:'POST',token:auth.token,body:{p_stops:body.stops,p_round_trip:body.roundTrip,p_manual_order:body.manualOrder,p_expected_revision:body.revision}});
     if(!r.ok){const e=await r.json();return json({error:e.code==='40001'?'El reparto cambió en otro dispositivo. Recuperá la copia de la nube antes de guardar.':'No se pudo guardar el reparto.'},e.code==='40001'?409:502);}
     return json({route:(await r.json())[0]});

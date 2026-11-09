@@ -1,6 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {optimize,routeCost,blocks,mapsURL,navigationPlan,addressSearch,localAddressResults,BUENOS_AIRES} from './core.mjs';
+import {optimize,routeCost,blocks,mapsURL,navigationPlan,shortAddress,addressSearch,localAddressResults,BUENOS_AIRES} from './core.mjs';
+test('direcciones compactas conservan calle y altura sin inventar barrio ni puerta',()=>{
+ assert.equal(shortAddress({address:'Farmacia JKS, 602, Avenida Ángel Torcuato de Alvear, Don Torcuato, Partido de Tigre, Argentina'}),'Avenida Ángel Torcuato de Alvear 602');
+ assert.equal(shortAddress({address:'UNSAM, 79 - 25 de Mayo, Villa Progreso, Buenos Aires, Argentina'}),'79 - 25 de Mayo');
+ assert.equal(shortAddress({address:'Dirección larga',shortAddress:'Iguazú 940'}),'Iguazú 940');
+ assert.equal(shortAddress({address:'Punto de carga'}),'Punto de carga');
+});
 
 test('envía el máximo compatible y repone pendientes sin repetir entregadas',()=>{
  const stops=Array.from({length:30},(_,i)=>({id:i,lat:-34-i/1000,lon:-58,done:i<3})),seen=[];

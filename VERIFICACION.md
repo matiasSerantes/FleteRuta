@@ -4,7 +4,7 @@ Fecha: 4 de noviembre de 2026.
 
 ## Comprobaciones de esta versión
 
-- `npm test`: 55 pruebas aprobadas. Registro: `docs/REGISTRO.md`. Integración: `docs/INTEGRACION_SUPABASE.md`. Administración por aplicación, protección y MFA: `docs/USUARIOS_Y_ACCESOS.md`.
+- `npm test`: 58 pruebas aprobadas. Registro: `docs/REGISTRO.md`. Integración: `docs/INTEGRACION_SUPABASE.md`. Administración por aplicación, protección y MFA: `docs/USUARIOS_Y_ACCESOS.md`.
 - Recuperación: guardado automático, reapertura con entregas realizadas, cambios sin conexión conservados, protección de avances de la versión manual y serialización de cambios durante un guardado en curso. El seguimiento puede reanudarse automáticamente con GPS fresco; el aviso de llegada sigue requiriendo precisión y permanencia.
 - Seguimiento: permanencia cerca, precisión, antigüedad, velocidad, aviso único, posposición y cambio de destino, incluyendo dos entregas en el mismo lugar.
 - Flujo del cuadro de llegada con DOM: notificación mediante service worker simulado, Todavía no sin completar, confirmación de una sola entrega, enlace con las siguientes pendientes compatibles, selección de Waze y finalización de la última entrega sin abrir un destino inexistente. Sin validación de notificaciones/GPS reales en un celular ni de navegación del sistema operativo.
@@ -20,19 +20,19 @@ Fecha: 4 de noviembre de 2026.
 ## Comprobaciones previas de servicios
 
 - `node --check app.js`: correcto.
-- `node --test core.test.mjs`: 5 pruebas aprobadas (30 entregas, integridad de bloques, retorno, matriz inválida y una entrega).
+- `node --test core.test.mjs`: 5 pruebas aprobadas (40 entregas, integridad de bloques, retorno, matriz inválida y una entrega).
 - `GET http://localhost:5173`: HTTP 200.
 - OSRM con tres puntos de ejemplo en CABA: matriz de distancias 3×3, HTTP 200, código Ok.
 - OSRM con los mismos puntos: ruta GeoJSON disponible, HTTP 200, código Ok.
 - La primera conexión externa fue bloqueada por el entorno restringido; la comprobación con acceso de red autorizado pasó.
 - Navegador de automatización no disponible: sin validación visual ni de CORS en un navegador real.
-- Pendiente: búsqueda Nominatim en navegador, GPS real y permisos, recuperación local, recorrido integrado de 30 entregas y apertura de Google Maps/Waze en celular por HTTPS.
+- Pendiente: búsqueda Nominatim en navegador, GPS real y permisos, recuperación local, recorrido integrado de 40 entregas y apertura de Google Maps/Waze en celular por HTTPS.
 
 El 75 % del tablero es una estimación ponderada de implementación, no un porcentaje de pruebas aprobadas. La app está preparada para una prueba manual, sin declaración de aptitud para producción.
 
 ## Revisión del 8 de noviembre
 
-55 pruebas aprobadas. Lista de clientes y diseño móvil verificados también en Chrome real de escritorio con viewport de celular y login/GPS simulados. Ver docs/PRUEBA_MIERCOLES.md para evidencia y pendientes reales; las limitaciones anteriores de GPS y correo real siguen vigentes.
+58 pruebas aprobadas. Lista de clientes y diseño móvil verificados también en Chrome real de escritorio con viewport de celular y login/GPS simulados. Ver docs/PRUEBA_MIERCOLES.md para evidencia y pendientes reales; las limitaciones anteriores de GPS y correo real siguen vigentes.
 
 Navegación unificada: selector de app y un solo enlace de recorrido. Ver docs/NAVEGACION.md para límites y verificación.
 

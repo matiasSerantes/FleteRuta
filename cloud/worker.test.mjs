@@ -1,6 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {handle} from './worker.mjs';
+import {handle,validateRoute} from './worker.mjs';
+test('permite cuarenta paradas y valida dirección corta y punto de retorno',()=>{
+ const stops=Array.from({length:40},(_,i)=>({id:String(i),lat:-34,lon:-58,address:'Calle 123',shortAddress:'Calle 123',returnPoint:i===39,done:false})),body={stops,roundTrip:false,manualOrder:true,revision:0};
+ assert.equal(validateRoute(body),true);assert.equal(validateRoute({...body,stops:[...stops,{...stops[0],id:'extra'}]}),false);assert.equal(validateRoute({...body,stops:[{...stops[0],returnPoint:'yes'}]}),false);
+});
 const origin='https://fleteruta.example',id='10000000-0000-0000-0000-000000000001';
 function fixture({member=true,expired=false,admin=false,mfa=false,signupMode='confirm',hydro=false}={}){
  const calls=[];let revision=0,stops=[];

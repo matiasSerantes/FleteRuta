@@ -51,20 +51,20 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
   await until(()=>$('route-state').dataset.state==='ready');checkMapNumbers();assert.match($('summary').textContent,/3 pendientes/);
   const beforeManual=matrixCalls;
   const move=(row,text)=>[...document.querySelectorAll('#stops tr')[row].querySelectorAll('button')].find(b=>b.textContent===text);
-  assert.equal(move(0,'↑ Subir').disabled,true);assert.equal(move(2,'↓ Bajar').disabled,true);
-  move(0,'↓ Bajar').click();assert.deepEqual(rowAddresses(),['Intermedia 1234','Cercana 1234','Lejana 1234']);checkMapNumbers();
+  assert.equal(move(0,'↑').disabled,true);assert.equal(move(2,'↓').disabled,true);
+  move(0,'↓').click();assert.deepEqual(rowAddresses(),['Intermedia 1234','Cercana 1234','Lejana 1234']);checkMapNumbers();
   await until(()=>$('route-state').dataset.state==='ready');assert.match($('route-state').textContent,/Orden manual/);assert.equal(matrixCalls,beforeManual);
   assert.equal(JSON.parse(localStorage.getItem('fleteruta-test-v1')).manualOrder,true);
   const mapsURL=new URL($('trip-go').href);assert.equal(mapsURL.searchParams.get('waypoints').split('|')[0],'-34.6037,'+(-58.3816+.2));
   assert.equal(document.querySelectorAll('#stops .actions a').length,0);
-  move(1,'↑ Subir').click();assert.deepEqual(rowAddresses(),['Cercana 1234','Intermedia 1234','Lejana 1234']);
+  move(1,'↑').click();assert.deepEqual(rowAddresses(),['Cercana 1234','Intermedia 1234','Lejana 1234']);
   await until(()=>$('route-state').dataset.state==='ready');assert.equal(matrixCalls,beforeManual);
   $('auto-order').click();await until(()=>$('route-state').dataset.state==='ready');assert.ok(matrixCalls>beforeManual);assert.equal($('auto-order').hidden,true);
   [...document.querySelectorAll('#stops .actions button')].find(b=>b.textContent==='✓ Entregada').click();
   assert.deepEqual(rowAddresses(),['Intermedia 1234','Lejana 1234','Cercana 1234']);checkMapNumbers();
   await until(()=>$('route-state').dataset.state==='ready');assert.match($('delivery-count').textContent,/2 pendientes/);assert.equal(document.querySelectorAll('#stops tr.done').length,1);
   assert.equal($('metric-pending').textContent,'2');assert.equal($('metric-done').textContent,'1');
-  assert.equal(move(1,'↓ Bajar').disabled,true);assert.equal(move(2,'↑ Subir').disabled,true);
+  assert.equal(move(1,'↓').disabled,true);assert.equal(move(2,'↑').disabled,true);
   const saved=JSON.parse(localStorage.getItem('fleteruta-test-v1'));assert.deepEqual(saved.stops.map(s=>s.address),rowAddresses());
   assert.ok(document.querySelector('.route-column .map-panel').compareDocumentPosition(document.querySelector('.deliveries-panel'))&window.Node.DOCUMENT_POSITION_FOLLOWING);
   document.querySelector('.bottom-nav [data-view-target="account"]').click();assert.equal($('view-account').hidden,false);assert.equal($('view-clients').hidden,true);
@@ -75,6 +75,10 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
   try{
    Object.defineProperty(globalThis,'confirm',{value:()=>false,writable:true,configurable:true});[...document.querySelector('#stops tr').querySelectorAll('button')].find(b=>b.textContent==='Eliminar').click();assert.equal(rowAddresses().length,3);
    globalThis.confirm=()=>true;[...document.querySelector('#stops tr').querySelectorAll('button')].find(b=>b.textContent==='Eliminar').click();assert.equal(rowAddresses().length,2);checkMapNumbers();
+   $('add-current').click();await until(()=>rowAddresses().includes('Punto de carga')&&!$('add-current').disabled);
+   const withLoading=JSON.parse(localStorage.getItem('fleteruta-test-v1')).stops;assert.equal(withLoading.filter(s=>!s.done).at(-1).returnPoint,true);assert.equal(withLoading.find(s=>s.returnPoint).lat,-34.6037);
+   $('address-list').value='Otra 1234';globalThis.confirm=()=>false;$('finish-day').click();assert.equal(rowAddresses().length,3);
+   globalThis.confirm=()=>true;$('finish-day').click();assert.equal(rowAddresses().length,0);assert.equal($('address-list').value,'');assert.equal($('return').checked,false);assert.equal(JSON.parse(localStorage.getItem('fleteruta-test-v1')).stops.length,0);assert.equal(document.querySelectorAll('.leaflet-marker-icon:not(.origin-marker)').length,0);
   }finally{if(confirmation)Object.defineProperty(globalThis,'confirm',confirmation);else delete globalThis.confirm;}
  }finally{globalThis.fetch=originalFetch;window.happyDOM.abort();window.close();}
 });

@@ -14,6 +14,12 @@ export function optimize(matrix,roundTrip=false){
  return best;
 }
 export function blocks(stops,size=4){let result=[];for(let i=0;i<stops.length;i+=size)result.push(stops.slice(i,i+size));return result;}
+export function shortAddress(stop){
+ if(typeof stop.shortAddress==='string'&&stop.shortAddress.trim())return stop.shortAddress.trim();
+ const parts=String(stop.address||'').split(',').map(p=>p.trim()).filter(Boolean),number=parts.findIndex(p=>/^\d+[a-z]?(?:[-/]\d+)?$/i.test(p));
+ if(number>=0){const street=parts[number+1]||parts[number-1];if(street)return `${street} ${parts[number]}`;}
+ return parts.find(p=>/^(?:(?:avenida|av\.?|calle|pasaje|ruta|camino|boulevard)\s+|\d+\s*-\s*\S)/i.test(p))||parts[0]||'Sin dirección';
+}
 export function navigationPlan(stops,app='maps',{returnPoint=null,limit=4,origin=null}={}){
  const pending=stops.filter(s=>!s.done),destinations=[...pending,...(returnPoint?[returnPoint]:[])];
  const capacity=app==='waze'?1:Math.max(1,Math.min(10,limit));

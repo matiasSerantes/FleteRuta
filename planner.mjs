@@ -2,7 +2,8 @@ import {optimize,distanceKm} from './core.mjs';
 
 export function orderedStops(stops, origin, roundTrip, distances) {
  const pending=stops.filter(stop=>!stop.done);
- if(!origin||!pending.length)return [...pending,...stops.filter(stop=>stop.done)];
+ const finishLast=items=>[...items.filter(s=>!s.returnPoint),...items.filter(s=>s.returnPoint),...stops.filter(s=>s.done)];
+ if(!origin||!pending.length)return finishLast(pending);
  const points=[origin,...pending];
  const matrix=distances||points.map(a=>points.map(b=>{
   const rad=Math.PI/180,dLat=(b.lat-a.lat)*rad,dLon=(b.lon-a.lon)*rad;
@@ -10,7 +11,7 @@ export function orderedStops(stops, origin, roundTrip, distances) {
   return 6371000*2*Math.asin(Math.sqrt(Math.min(1,h)));
  }));
  if(matrix.length!==points.length)throw Error('La matriz no coincide con las entregas pendientes.');
- return [...optimize(matrix,roundTrip).map(index=>pending[index-1]),...stops.filter(stop=>stop.done)];
+ return finishLast(optimize(matrix,roundTrip).map(index=>pending[index-1]));
 }
 
 // Only the latest snapshot may update the table, markers and route.

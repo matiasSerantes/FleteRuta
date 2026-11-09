@@ -1,6 +1,6 @@
 # FleteRuta
 
-Prototipo web para organizar repartos de hasta 30 entregas en Argentina. Versión TEST 0.3, con acceso privado y ubicación actual como salida.
+Prototipo web para organizar repartos de hasta 40 entregas en Argentina. Versión TEST 0.3, con acceso privado y ubicación actual como salida.
 
 Interfaz para celular con letras grandes y barra fija: **Recorrido**, **Clientes** y **Mi cuenta**. Se abre directamente la próxima entrega y un botón para navegar. Ver [diseño y verificación en celular](docs/DISENO_CELULAR.md).
 
@@ -24,7 +24,7 @@ Este servidor de prueba escucha únicamente en esta PC. No usar un servidor est�
 
 ## Funciones implementadas
 
-- Hasta 30 direcciones, con búsqueda explícita y confirmación del resultado.
+- Hasta 40 direcciones, con búsqueda explícita y confirmación del resultado.
 - Búsqueda limitada a Argentina y, por defecto, hasta 100 km del GPS. Sin GPS usa CABA como centro. Opción para ampliar a toda Argentina.
 - Tabla debajo del mapa y marcadores con numeración sincronizada.
 - Orden automático aproximado por cercanía, ajustado con distancias por calles de OSRM.
@@ -56,7 +56,7 @@ npm ci
 npm test
 ```
 
-55 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
+58 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
 
 El código de la app usa HTML, CSS y JavaScript, sin compilación ni dependencias de servidor externas. Leaflet 1.9.4 se incluye en `vendor/leaflet` con su licencia. Happy DOM se utiliza solo para desarrollo.
 
@@ -65,3 +65,5 @@ Consultar [INICIAR.md](INICIAR.md), [VERIFICACION.md](VERIFICACION.md) y el [tab
 Preparación para el reparto: [prueba del miércoles 11 de noviembre](docs/PRUEBA_MIERCOLES.md). Carga de listas con confirmación individual y tarjetas para celular.
 
 Ingreso según aplicaciones habilitadas y licencia vigente: [portal de aplicaciones](docs/PORTAL.md). Una sola app abre directamente; ambas permiten elegir.
+
+Paradas compactas, punto de carga y Finalizar día: [funcionamiento y verificación](docs/PARADAS_COMPACTAS.md).

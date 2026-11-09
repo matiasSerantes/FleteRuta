@@ -8,17 +8,18 @@ test('Postgres real: aislamiento, autorización, validación y conflictos de edi
  try{
   await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;create table public.platform_admins(user_id uuid);insert into auth.users values('${a}'),('${b}'),('${c}');insert into public.platform_admins values('${a}');`);
   await db.exec(await readFile(new URL('./supabase/migrations/20261105031300_fleteruta_foundation.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('./supabase/migrations/20261109020000_fleteruta_40_stops.sql',import.meta.url),'utf8'));
   await db.exec(`insert into public.fleteruta_members(user_id) values('${b}');set role authenticated;select set_config('request.jwt.claim.sub','${a}',false);`);
   const stops=[{id:'parada',lat:-34.6,lon:-58.4,address:'Prueba',done:false}];
   const save=(items,revision)=>db.query('select * from public.fleteruta_save_route($1::jsonb,false,true,$2)',[JSON.stringify(items),revision]);
   assert.equal((await save(stops,0)).rows[0].revision,1);
   await assert.rejects(()=>save(stops,0),/another device/);
   assert.equal((await save(stops,1)).rows[0].revision,2);
-  await assert.rejects(()=>save(Array(31).fill(stops[0]),2),/Invalid route/);
+  const forty=Array.from({length:40},(_,i)=>({...stops[0],id:'stop-'+i}));assert.equal((await db.query('select public.fleteruta_valid_stops($1::jsonb) as valid',[JSON.stringify(forty)])).rows[0].valid,true);await assert.rejects(()=>save([...forty,{...stops[0],id:'extra'}],2),/Invalid route/);
   await assert.rejects(()=>save([{...stops[0],lat:200}],2),/Invalid route/);
   await db.exec(`select set_config('request.jwt.claim.sub','${b}',false)`);
   assert.equal((await db.query('select * from public.fleteruta_routes')).rows.length,0);
-  assert.equal((await save([],0)).rows[0].user_id,b);
+  assert.equal((await save(forty,0)).rows[0].stops.length,40);assert.equal((await save([],1)).rows[0].user_id,b);
   await assert.rejects(()=>db.exec(`update public.fleteruta_routes set user_id='${a}'`));
   await assert.rejects(()=>db.exec(`insert into public.fleteruta_members(user_id) values('${c}')`));
   await db.exec(`select set_config('request.jwt.claim.sub','${c}',false)`);

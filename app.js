@@ -1,4 +1,4 @@
-import {addressSearch,localAddressResults,distanceKm} from './core.mjs';
+import {shortAddress,addressSearch,localAddressResults,distanceKm} from './core.mjs';
 import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
@@ -25,7 +25,7 @@ function showView(name,focus=false){
 document.querySelectorAll('[data-view-target]').forEach(button=>button.onclick=()=>showView(button.dataset.viewTarget,true));
 if(boot.username)$('account-email').textContent=boot.username;
 if($('apps-link'))$('apps-link').hidden=boot.backend!=='supabase';
-try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,30);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
+try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,40);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
 function searchHint(){$('search-area').textContent=$('search-scope').value==='argentina'?'Buscando solo en Argentina. Resultados ordenados por cercanía.':origin?'Solo Argentina, hasta 100 km de tu ubicación actual.':'Sin GPS: búsqueda en Buenos Aires y alrededores (hasta 100 km de CABA).';}
@@ -51,21 +51,21 @@ function render(){
  $('auto-order').hidden=!manualOrder;
  const pending=stops.filter(s=>!s.done).length;
  $('metric-pending').textContent=String(pending);$('metric-done').textContent=String(stops.length-pending);$('metric-total').textContent=String(stops.length);
- $('counter').textContent=`${stops.length} / 30`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
+ $('counter').textContent=`${stops.length} / 40`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
  stops.forEach((s,i)=>{
   const row=node('tr',null,'delivery-row'+(s.done?' done':'')+(s.id===focusedId?' selected':''));row.dataset.id=s.id;
-  const address=node('td',null,'address-cell'),view=button('',()=>selectStop(s.id),`Ver parada ${i+1} en el mapa`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',s.address,'address-text'));address.append(view);
+  const address=node('td',null,'address-cell'),view=button('',()=>{const details=address.querySelector('details');details.open=!details.open;view.setAttribute('aria-expanded',String(details.open));selectStop(s.id);},`Ver dirección completa de parada ${i+1}`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',shortAddress(s),'address-text'));view.setAttribute('aria-expanded','false');const detail=node('details',null,'address-details');detail.append(node('summary','Ver barrio y dirección completa'),node('p',s.address));if(s.recipient)detail.append(node('p','Cliente: '+s.recipient));if(s.notes)detail.append(node('p',s.notes));address.append(view,detail);
   const state=node('td');state.append(node('span',s.done?'Entregada':'Pendiente','delivery-status '+(s.done?'is-done':'')));
   const actions=node('td',null,'actions-cell'),group=node('div',null,'actions');
-  for(const [delta,label] of [[-1,'↑ Subir'],[1,'↓ Bajar']]){
+  for(const [delta,label] of [[-1,'↑'],[1,'↓']]){
    const move=button(label,()=>moveStop(s.id,delta),`${delta<0?'Subir':'Bajar'} parada ${i+1}`);
    const unavailable=s.done||!stops[i+delta]||stops[i+delta].done;
-   move.dataset.unavailable=String(unavailable);move.disabled=busy||unavailable;group.append(move);
+   move.title=delta<0?'Subir parada':'Bajar parada';move.dataset.unavailable=String(unavailable);move.disabled=busy||unavailable;group.append(move);
   }
   const completed=button(s.done?'↶ Pendiente':'✓ Entregada',()=>{s.done=!s.done;changed('Estado de entrega actualizado.');});if(!s.done)completed.className='primary';group.append(completed);
   const more=node('details',null,'stop-options');more.append(node('summary','Más opciones'));
   more.append(button('Editar',()=>{editing=s.id;showView('clients',true);$('address').value=s.address;$('recipient').value=s.recipient||'';$('notes').value=s.notes||'';$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});message('Buscá y confirmá la dirección corregida para reemplazar esta entrega.');}),button('Eliminar',()=>{if(!confirm(`¿Eliminar esta parada?\n${s.address}\nLas otras entregas se conservan.`))return;stops=stops.filter(p=>p.id!==s.id);if(editing===s.id)editing=null;changed('Entrega eliminada.');}));group.append(more);
-  actions.append(group);row.append(address,node('td',s.recipient||'—'),node('td',s.notes||'—'),state,actions);['Parada / dirección','Destinatario','Observaciones','Estado','Acciones'].forEach((label,index)=>row.children[index].dataset.label=label);$('stops').append(row);
+  actions.append(group);row.append(address,state,actions);['Dirección','Estado','Acciones'].forEach((label,index)=>row.children[index].dataset.label=label);$('stops').append(row);
  });draw();trip?.sync();
 }
 function moveStop(id,delta){
@@ -118,10 +118,17 @@ async function locate(){
  finally{searchHint();}
 }
 $('locate').onclick=()=>task(locate);$('optimize').onclick=()=>task(locate);
+$('add-current').onclick=()=>task(async()=>{
+ if(stops.length>=40)throw Error('Llegaste a las 40 paradas. Eliminá una para agregar el punto de carga.');
+ if(!confirm('¿Guardar tu ubicación actual como punto de carga para volver al final?'))return;
+ await locate();
+ stops.push({id:crypto.randomUUID(),address:'Punto de carga',lat:origin.lat,lon:origin.lon,done:false,returnPoint:true});
+ manualOrder=true;$('return').checked=false;changed('Punto de carga guardado como última parada. Las nuevas entregas se agregarán antes de ese punto.');
+});
 $('auto-order').onclick=()=>{trip?.stop('Seguimiento detenido para reordenar. Volvé a iniciarlo cuando esté listo.');manualOrder=false;changed('Orden automático activado. Reacomodando las paradas por cercanía y calles.');};
 $('search-scope').onchange=()=>{$('results').replaceChildren();searchHint();message('Zona de búsqueda actualizada. Volvé a buscar la dirección.');};
 $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
- if(stops.length>=30&&!editing)throw Error('Llegaste a las 30 entregas. Eliminá una para agregar otra.');
+ if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas. Eliminá una para agregar otra.');
  const query=$('address').value.trim();if(query.length<4)throw Error('Ingresá calle, altura y localidad.');
  const search=addressSearch(query,origin,$('search-scope').value);
  $('results').replaceChildren();message('Buscando la dirección en Argentina y en la zona seleccionada…');let results=cache[search.key];
@@ -133,9 +140,10 @@ $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
   const b=button(result.display_name,()=>task(async()=>{
    if($('address').value.trim()!==queryAtSearch||editing!==editAtSearch||addressSearch(queryAtSearch,origin,$('search-scope').value).key!==search.key)throw Error('La dirección o la zona cambió. Volvé a buscar antes de confirmar.');
    const lat=Number(result.lat),lon=Number(result.lon);if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)throw Error('La ubicación recibida no es válida.');
-   const old=stops.find(s=>s.id===editing);if(!old&&stops.length>=30)throw Error('Llegaste a las 30 entregas.');
-   const item={id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
-   if(old)stops[stops.indexOf(old)]=item;else stops.push(item);focusedId=item.id;editing=null;
+   const old=stops.find(s=>s.id===editing);if(!old&&stops.length>=40)throw Error('Llegaste a las 40 entregas.');
+   const road=result.address?.road||result.address?.pedestrian||result.address?.residential||'';
+   const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,shortAddress:road?[road,result.address.house_number].filter(Boolean).join(' '):shortAddress({address:result.display_name}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
+   if(old)stops[stops.indexOf(old)]=item;else {const end=stops.findIndex(s=>s.returnPoint&&!s.done);if(end>=0)stops.splice(end,0,item);else stops.push(item);}focusedId=item.id;editing=null;
    $('search-form').reset();$('results').replaceChildren();changed(old?'Dirección corregida. Recorrido actualizado automáticamente.':'Dirección agregada a la tabla y al mapa. El recorrido se acomoda automáticamente.');
    if(!old)addressList?.confirmed(queryAtSearch);
   }));b.className='result';const km=distanceKm(search.center,{lat:Number(result.lat),lon:Number(result.lon)});b.append(node('span',`${km.toFixed(1)} km ${origin?'de tu ubicación':'de CABA'} · Confirmar esta ubicación`));$('results').append(b);
@@ -144,6 +152,10 @@ $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
 $('return').onchange=()=>changed('Destino final actualizado. Reacomodando las paradas.');
 $('fit').onclick=fit;
 $('clear').onclick=()=>{if(!busy&&confirm('¿Borrar todas las entregas de este reparto?')){stops=[];editing=null;focusedId=null;manualOrder=false;addressList?.clear();$('results').replaceChildren();$('search-form').reset();changed('Reparto borrado. Podés cargar nuevas entregas.');}};
+$('finish-day').onclick=()=>{
+ if(busy||!confirm('¿Finalizar el día? Se borrarán todas las paradas, las entregadas y la lista pendiente de este reparto. Esta acción no se puede deshacer.'))return;
+ trip?.stop('Día finalizado.');queue.cancel();stops=[];editing=null;focusedId=null;manualOrder=false;cache={};$('return').checked=false;addressList?.clear();$('address-list').value='';$('results').replaceChildren();$('search-form').reset();changed('Día finalizado. Recorrido borrado. Podés empezar uno nuevo.');
+};
 function initMap(){
  try{if(!window.L)throw Error('No se pudo cargar la biblioteca local del mapa. Reiniciá con iniciar-prueba.cmd.');
   map=L.map('map').setView([-34.6037,-58.3816],11);markers=L.featureGroup().addTo(map);
@@ -163,7 +175,7 @@ trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
   changed('Entrega realizada. Continuamos con la siguiente parada de tu recorrido.');
  }
 });
-addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>30-stops.length,isBusy:()=>busy,message,
+addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>40-stops.length,isBusy:()=>busy,message,
  onFill(item){showView('clients');editing=null;$('address').value=item.address;$('recipient').value=item.recipient;$('notes').value=item.notes;$('results').replaceChildren();$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});}
 });
 showView('route');initMap();render();searchHint();if(stops.length)fit();

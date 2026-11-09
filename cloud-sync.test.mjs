@@ -49,6 +49,7 @@ test('un cambio durante el guardado se envía después sin perder la última ent
   snapshot.stops=[stop()];store.changed();assert.equal(JSON.parse(localStorage.getItem('in-flight')).dirty,true);
   snapshot.stops[0].done=true;store.changed();assert.equal(bodies.length,1);
   pending[0](Response.json({route:{revision:1}}));await tick();assert.equal(bodies.length,2);assert.equal(bodies[1].stops[0].done,true);assert.equal(bodies[1].revision,1);
-  pending[1](Response.json({route:{revision:2}}));await tick();assert.equal(JSON.parse(localStorage.getItem('in-flight')).dirty,false);
+  snapshot=empty();snapshot.manualOrder=false;store.changed();assert.equal(bodies.length,2);
+  pending[1](Response.json({route:{revision:2}}));await tick();assert.equal(bodies[2].stops.length,0);pending[2](Response.json({route:{revision:3}}));await tick();assert.equal(JSON.parse(localStorage.getItem('in-flight')).dirty,false);
  }finally{globalThis.fetch=original;window.close();}
 });

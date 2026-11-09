@@ -12,7 +12,7 @@ test('lista acepta Excel y saltos de línea, valida capacidad sin truncar client
  assert.throws(()=>parseAddressList('abc'),/línea 1/);
  assert.throws(()=>parseAddressList('Calle 123\tNombre\tNota\tExtra'),/línea 1/);
  assert.throws(()=>parseAddressList('Calle 123\nCalle 456',1),/quedan 1/);
- assert.throws(()=>parseAddressList(Array(31).fill('Calle 123').join('\n')),/30 entregas/);
+ assert.throws(()=>parseAddressList(Array(41).fill('Calle 123').join('\n')),/40 entregas/);
 });
 
 test('lista sobrevive reapertura y solo avanza al confirmar su dirección',()=>{

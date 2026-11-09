@@ -1,4 +1,4 @@
-import {navigationPlan} from './core.mjs';
+import {navigationPlan,shortAddress} from './core.mjs';
 import {createArrivalDetector} from './planner.mjs';
 
 export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
@@ -17,7 +17,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  function sync(){
   const target=next(),key=target?`${target.id}:${target.lat}:${target.lon}`:null;
   if(key!==current){current=key;detector.reset();closeArrival();}
-  $('trip-target').textContent=target?target.address:'No quedan entregas pendientes.';
+  $('trip-target').textContent=target?shortAddress(target):'No quedan entregas pendientes.';
   $('trip-start').hidden=active;$('trip-stop').hidden=!active;
   $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
   const plan=planFor();$('trip-go').hidden=!plan.url;

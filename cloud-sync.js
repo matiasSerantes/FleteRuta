@@ -2,7 +2,7 @@ export function mountCloudStore({enabled,storageKey='fleteruta-cloud-state',getS
  const $=id=>document.getElementById(id),view=document.defaultView;
  if(!enabled)return {initialize:async()=>{},changed(){}};
  let revision=0,synced='',dirty=false,ready=false,saving=false,conflict=false,applying=false,loading=false,retryTimer=null,disposed=false;
- const hash=s=>JSON.stringify({stops:s.stops.map(p=>({id:p.id,address:p.address,lat:p.lat,lon:p.lon,done:p.done,recipient:p.recipient||'',notes:p.notes||''})),roundTrip:s.roundTrip,manualOrder:s.manualOrder});
+ const hash=s=>JSON.stringify({stops:s.stops.map(p=>({id:p.id,address:p.address,lat:p.lat,lon:p.lon,done:p.done,recipient:p.recipient||'',notes:p.notes||'',...(p.shortAddress?{shortAddress:p.shortAddress}:{}),...(p.returnPoint?{returnPoint:true}:{})})),roundTrip:s.roundTrip,manualOrder:s.manualOrder});
  try{const meta=JSON.parse(localStorage.getItem(storageKey)||'{}');revision=meta.revision||0;synced=meta.synced||'';dirty=meta.dirty===true||(!!synced&&hash(getSnapshot())!==synced)||(!synced&&getSnapshot().stops.length>0);}catch{dirty=getSnapshot().stops.length>0;}
  const snapshotOf=route=>({stops:route.stops,roundTrip:route.round_trip,manualOrder:route.manual_order});
  const status=text=>$('cloud-status').textContent=text;
@@ -60,7 +60,7 @@ export function mountCloudStore({enabled,storageKey='fleteruta-cloud-state',getS
   if(saving||loading)return;let legacy;try{legacy=JSON.parse(localStorage.getItem('fleteruta-test-v1')||'{}');}catch{}
   if(!Array.isArray(legacy?.stops)||!legacy.stops.length){message('No hay un reparto local anterior para importar.');return;}
   if(getSnapshot().stops.length&&!confirm('¿Reemplazar esta tabla con el reparto de la versión local?'))return;
-  applySnapshot({stops:legacy.stops.slice(0,30),roundTrip:!!legacy.roundTrip,manualOrder:!!legacy.manualOrder});changed();
+  applySnapshot({stops:legacy.stops.slice(0,40),roundTrip:!!legacy.roundTrip,manualOrder:!!legacy.manualOrder});changed();
  };
  const retry=()=>{if(disposed)return;if(!ready||conflict)return initialize();return flush();};
  const online=()=>{void retry();},hide=()=>{persist();void flush();},unload=event=>{if(dirty||saving){event.preventDefault();event.returnValue='';}},visible=()=>{if(!document.hidden)void retry();};

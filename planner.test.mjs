@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {orderedStops,createRouteQueue,createArrivalDetector} from './planner.mjs';
 const origin={lat:0,lon:0},stop=(id,lon,done=false)=>({id,lon,lat:0,done});
 const tick=()=>new Promise(resolve=>setTimeout(resolve,10));
+test('punto de carga permanece al final del orden automático',()=>{
+ const loading={...stop('carga',.001),returnPoint:true},customer=stop('cliente',.2);
+ assert.deepEqual(orderedStops([loading,customer],origin,false).map(s=>s.id),['cliente','carga']);
+ assert.deepEqual(orderedStops([loading,customer],null,false).map(s=>s.id),['cliente','carga']);
+});
 test('cada nueva dirección reacomoda el recorrido, sin cambiar la identidad de las entregas',()=>{
  let stops=[stop('lejana',.3)];stops=orderedStops(stops,origin,false);
  stops=orderedStops([...stops,stop('cercana',.1)],origin,false);assert.deepEqual(stops.map(s=>s.id),['cercana','lejana']);
