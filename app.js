@@ -3,6 +3,7 @@ import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
 import {mountAddressList} from './address-list.js';
+import {mountPasswordForm} from './profile.js';
 const $=id=>document.getElementById(id);
 const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
 if(boot.mfaRequired)location.replace('/login');
@@ -178,6 +179,7 @@ trip=mountTrip({getStops:()=>stops,getOrigin:()=>origin,message,
 addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>40-stops.length,isBusy:()=>busy,message,
  onFill(item){showView('clients');editing=null;$('address').value=item.address;$('recipient').value=item.recipient;$('notes').value=item.notes;$('results').replaceChildren();$('address').focus();$('search-form').scrollIntoView({behavior:'smooth',block:'center'});}
 });
+mountPasswordForm({enabled:boot.backend==='supabase'});
 showView('route');initMap();render();searchHint();if(stops.length)fit();
 cloud=mountCloudStore({enabled:boot.backend==='supabase',storageKey:KEY+'-cloud',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
  applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=snapshot.stops;manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}

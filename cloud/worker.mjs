@@ -1,4 +1,4 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/notifications-sw.js','/estado-proyecto.js']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/profile.js','/notifications-sw.js','/estado-proyecto.js']);
 const PRIVATE=new Set(['/','/index.html','/apps','/apps.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
 const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};
@@ -74,6 +74,16 @@ export async function handle(request,env,upstream=fetch){
   }
   if(url.pathname==='/auth/apps'&&request.method==='GET'){
    const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión.'},401);if(auth.mfaRequired)return json({error:'Completá la verificación de tu cuenta.'},403);return json(await portalApps(auth.token));
+  }
+  if(url.pathname==='/auth/password'&&request.method==='POST'){
+   const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión para cambiar tu contraseña.'},401);if(auth.mfaRequired)return json({error:'Completá la verificación de tu cuenta antes de cambiar la contraseña.'},403);
+   const body=await bodyJSON(4096);
+   if(typeof body.password!=='string'||body.password.length<12||body.password.length>128)return json({error:'La nueva contraseña debe tener entre 12 y 128 caracteres.'},400);
+   if(body.password!==body.confirmation)return json({error:'Las contraseñas no coinciden. Escribí la misma en los dos casilleros.'},400);
+   const response=await api('/auth/v1/user',{token:auth.token,method:'PUT',body:{password:body.password}});
+   if(!response.ok){const error=await response.json();return json({error:response.status===429?'Demasiados intentos. Esperá unos minutos y volvé a intentar.':['reauthentication_needed','reauthentication_not_valid','session_not_found'].includes(error.code)?'Por seguridad, cerrá sesión y volvé a ingresar antes de cambiar la contraseña.':error.code==='same_password'?'Elegí una contraseña distinta de la que usás ahora.':error.code==='weak_password'?'Elegí una contraseña más segura, con al menos 12 caracteres.':'No se pudo cambiar la contraseña. Volvé a ingresar y probá nuevamente.'},response.status===429?429:400);}
+   const changed=await response.json();if(changed.id!==auth.user.id)return json({error:'No pudimos confirmar el cambio para tu cuenta. Volvé a ingresar.'},502);
+   return json({ok:true});
   }
   if(url.pathname==='/auth/mfa'&&request.method==='POST'){
    const auth=await authenticate();if(!auth)return json({error:'Iniciá sesión para verificar el código.'},401);

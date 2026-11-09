@@ -6,13 +6,14 @@ test('permite cuarenta paradas y valida dirección corta y punto de retorno',()=
  assert.equal(validateRoute(body),true);assert.equal(validateRoute({...body,stops:[...stops,{...stops[0],id:'extra'}]}),false);assert.equal(validateRoute({...body,stops:[{...stops[0],returnPoint:'yes'}]}),false);
 });
 const origin='https://fleteruta.example',id='10000000-0000-0000-0000-000000000001';
-function fixture({member=true,expired=false,admin=false,mfa=false,signupMode='confirm',hydro=false}={}){
+function fixture({member=true,expired=false,admin=false,mfa=false,signupMode='confirm',hydro=false,passwordError=null}={}){
  const calls=[];let revision=0,stops=[];
  const env={SUPABASE_URL:'https://supabase.example',SUPABASE_PUBLISHABLE_KEY:'public-test-key',ASSETS:{fetch:async()=>new Response('asset')}};
  const upstream=async(url,options)=>{
   calls.push({url,options});const path=new URL(url).pathname;
   if(path==='/auth/v1/signup')return signupMode==='rate'?Response.json({code:'over_email_send_rate_limit'},{status:429}):Response.json(signupMode==='session'?{access_token:'signup-session',refresh_token:'signup-refresh',user:{id}}:{id,email:'new@example.com'});
   if(path==='/auth/v1/token')return Response.json({access_token:'access-test',refresh_token:'refresh-test',expires_in:3600,user:{id}});
+  if(path==='/auth/v1/user'&&options.method==='PUT')return passwordError?Response.json({code:passwordError},{status:400}):Response.json({id});
   if(path==='/auth/v1/user')return expired&&options.headers.Authorization==='Bearer expired'?Response.json({error:'expired'},{status:401}):Response.json({id,email:'test@example.com',factors:[{id,factor_type:'totp',status:'verified'}]});
   if(path==='/rest/v1/rpc/fleteruta_access_status')return Response.json({is_admin:admin&&!mfa,mfa_required:mfa});
   if(path==='/rest/v1/rpc/fleteruta_portal_apps')return Response.json({fleteruta:member,hidrotrack:hydro});
@@ -33,6 +34,18 @@ test('Worker requiere sesión para la aplicación, y no expone fuentes privadas 
  const {request}=fixture();const root=await request('/');assert.equal(root.status,303);assert.equal(root.headers.get('Location'),'/login');
  for(const path of ['/.private/auth.json','/.env','/server.mjs','/cloud/worker.mjs','/wrangler.jsonc','/app.test.mjs'])assert.equal((await request(path)).status,404);
  assert.equal((await request('/api/route')).status,401);assert.equal((await request('/login')).status,200);
+});
+
+test('contraseña: solo sesión habilitada, MFA y origen propio; cambia solo la clave de esa cuenta',async()=>{
+ const {request,calls}=fixture(),body={password:'ClaveNuevaSoloTest123!',confirmation:'ClaveNuevaSoloTest123!',email:'other@example.com',userId:'other'};
+ assert.equal((await request('/auth/password',{method:'POST',body})).status,401);
+ assert.equal((await request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body,requestOrigin:'https://evil.example'})).status,403);
+ assert.equal((await fixture({mfa:true}).request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body})).status,403);
+ assert.equal((await request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body:{...body,password:'corta'}})).status,400);
+ assert.equal((await request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body:{...body,confirmation:'otra-clave'}})).status,400);
+ const response=await request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body});assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true});
+ const write=calls.find(c=>c.options.method==='PUT');assert.deepEqual(JSON.parse(write.options.body),{password:body.password});assert.equal(write.options.headers.Authorization,'Bearer access-test');
+ const failure=await fixture({passwordError:'reauthentication_needed'}).request('/auth/password',{method:'POST',cookie:'fr_access=access-test',body});assert.equal(failure.status,400);assert.match((await failure.json()).error,/volvé a ingresar/);
 });
 test('cuenta habilitada recibe cookies privadas, sin tokens en JSON',async()=>{
  const {request}=fixture();const response=await request('/auth/login',{method:'POST',body:{username:'test@example.com',password:'fake-password'}});assert.equal(response.status,200);

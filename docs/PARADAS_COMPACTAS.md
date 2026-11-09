@@ -10,4 +10,4 @@ Solo FleteRuta. Cambios del 8 de noviembre de 2026; no cambia HidroTrack.
 
 Migración `20261109020000_fleteruta_40_stops.sql`: solo reemplaza el validador de las paradas de FleteRuta, mantiene permisos y acepta hasta 40. No modifica datos de personas reales ni tablas o licencias de HidroTrack. Verificación remota sin escrituras de rutas: 40 válidas, 41 rechazadas.
 
-58 pruebas aprobadas: límites, guardar 40 en PostgreSQL, campos opcionales, calle/altura, punto final, cancelar/confirmar cierre, mapa vacío y guardado vacío detrás de un guardado en curso. Chrome a 360/390 px y escritorio sin desbordes de página, con datos y GPS simulados. La prueba de recorrido real sigue pendiente del teléfono invitado.
+60 pruebas aprobadas: límites, guardar 40 en PostgreSQL, campos opcionales, calle/altura, punto final, cancelar/confirmar cierre, mapa vacío y guardado vacío detrás de un guardado en curso. Chrome a 360/390 px y escritorio sin desbordes de página, con datos y GPS simulados. La prueba de recorrido real sigue pendiente del teléfono invitado.

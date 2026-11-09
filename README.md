@@ -56,7 +56,7 @@ npm ci
 npm test
 ```
 
-58 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
+60 pruebas automáticas de lógica, recuperación/guardado, registro, autenticación/MFA, administración, permisos PostgreSQL, Worker y flujos de interfaz con Happy DOM y Leaflet. GPS, notificaciones y servicios externos se simulan en las pruebas de interfaz; no reemplazan una prueba real en celular. Ver [registro con aprobación](docs/REGISTRO.md).
 
 El código de la app usa HTML, CSS y JavaScript, sin compilación ni dependencias de servidor externas. Leaflet 1.9.4 se incluye en `vendor/leaflet` con su licencia. Happy DOM se utiliza solo para desarrollo.
 
@@ -67,3 +67,5 @@ Preparación para el reparto: [prueba del miércoles 11 de noviembre](docs/PRUEB
 Ingreso según aplicaciones habilitadas y licencia vigente: [portal de aplicaciones](docs/PORTAL.md). Una sola app abre directamente; ambas permiten elegir.
 
 Paradas compactas, punto de carga y Finalizar día: [funcionamiento y verificación](docs/PARADAS_COMPACTAS.md).
+
+Mi cuenta permite [restablecer la contraseña de la sesión actual](docs/CONTRASENA.md), con confirmación y mensajes de resultado.
