@@ -34,21 +34,24 @@ test('llegada, notificación, rechazo y confirmación abren solo el siguiente de
  }finally{trip.stop();window.close();}
 });
 
-test('un solo control envía cuatro pendientes en móvil, actualiza al entregar o borrar y al confirmar llegada',async()=>{
+test('envía diez pendientes a Google Maps y ofrece bloques de cuatro para navegador móvil',async()=>{
  const window=new Window({url:'http://localhost:5173',width:390,height:844}),document=window.document;
  document.write((await readFile(new URL('./index.html',import.meta.url),'utf8')).replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/<link\b[^>]*>/g,''));
  Object.defineProperty(window,'isSecureContext',{value:true});let callback,trip;
  const navigator={userAgent:'Android',geolocation:{watchPosition:success=>{callback=success;return 1;},clearWatch(){}}};
  for(const [key,value] of Object.entries({window,document,navigator,localStorage:window.localStorage}))Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
- let stops=Array.from({length:7},(_,i)=>({id:String(i),lat:-34.6-i/100,lon:-58.4,address:'Entrega '+i,done:false}));
+ let stops=Array.from({length:10},(_,i)=>({id:String(i),lat:-34.6-i/100,lon:-58.4,address:'Entrega '+i,done:false}));
  const $=id=>document.getElementById(id),destinations=element=>{const url=new URL(element.href);return [...(url.searchParams.get('waypoints')||'').split('|').filter(Boolean),url.searchParams.get('destination')];};
  trip=mountTrip({getStops:()=>stops,getOrigin:()=>({lat:-34.5,lon:-58.3}),onStart(){},onComplete(id){stops.find(s=>s.id===id).done=true;trip.sync();},message(){}});
  try{
-  assert.deepEqual(destinations($('trip-go')),stops.slice(0,4).map(s=>`${s.lat},${s.lon}`));assert.match($('navigation-hint').textContent,/Quedan 3/);
-  stops[0].done=true;trip.sync();assert.deepEqual(destinations($('trip-go')),stops.slice(1,5).map(s=>`${s.lat},${s.lon}`));
-  stops=stops.filter(s=>s.id!=='2');trip.sync();assert.deepEqual(destinations($('trip-go')),stops.filter(s=>!s.done).slice(0,4).map(s=>`${s.lat},${s.lon}`));
+  assert.deepEqual(destinations($('trip-go')),stops.map(s=>`${s.lat},${s.lon}`));assert.match($('trip-go').textContent,/10 paradas/);
+  assert.equal(new URL($('trip-go').href).searchParams.get('waypoints').split('|').length,9);
+  $('maps-browser-mode').click();assert.deepEqual(destinations($('trip-go')),stops.slice(0,4).map(s=>`${s.lat},${s.lon}`));assert.match($('navigation-hint').textContent,/Quedan 6/);
+  $('maps-browser-mode').click();assert.deepEqual(destinations($('trip-go')),stops.map(s=>`${s.lat},${s.lon}`));
+  stops[0].done=true;trip.sync();assert.deepEqual(destinations($('trip-go')),stops.slice(1).map(s=>`${s.lat},${s.lon}`));
+  stops=stops.filter(s=>s.id!=='2');trip.sync();assert.deepEqual(destinations($('trip-go')),stops.filter(s=>!s.done).map(s=>`${s.lat},${s.lon}`));
   trip.resume();const target=stops.find(s=>!s.done),now=Date.now();for(const timestamp of [now-9000,now])callback({timestamp,coords:{latitude:target.lat,longitude:target.lon,accuracy:10,speed:0}});
-  assert.equal($('arrival-dialog').open,true);const expected=stops.filter(s=>!s.done&&s.id!==target.id).slice(0,4).map(s=>`${s.lat},${s.lon}`);assert.deepEqual(destinations($('arrival-yes')),expected);
+  assert.equal($('arrival-dialog').open,true);const expected=stops.filter(s=>!s.done&&s.id!==target.id).map(s=>`${s.lat},${s.lon}`);assert.deepEqual(destinations($('arrival-yes')),expected);
   $('arrival-yes').onclick(new window.MouseEvent('click',{cancelable:true}));assert.equal(target.done,true);assert.deepEqual(destinations($('trip-go')),expected);
   $('navigator-app').value='waze';$('navigator-app').dispatchEvent(new window.Event('change'));assert.match($('trip-go').href,/waze.com/);assert.match($('navigation-hint').textContent,/Waze acepta un destino/);
   stops.forEach(s=>s.done=true);trip.sync();assert.equal($('trip-go').hidden,true);assert.equal($('trip-go').hasAttribute('href'),false);

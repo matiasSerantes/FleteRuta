@@ -3,7 +3,7 @@ import {createArrivalDetector} from './planner.mjs';
 
 export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  const $=id=>document.getElementById(id),detector=createArrivalDetector();
- let active=false,watch=null,poll=null,current=null,lastPosition=null,registration=null,notification=null,base=null,checking=false,arrivalId=null;
+ let active=false,watch=null,poll=null,current=null,lastPosition=null,registration=null,notification=null,base=null,checking=false,arrivalId=null,browserChunks=false;
  try{$('navigator-app').value=localStorage.getItem('fleteruta-navigator')==='waze'?'waze':'maps';}catch{}
  const next=()=>getStops().find(s=>!s.done);
  const mobile=()=>window.innerWidth<=760||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')||navigator.maxTouchPoints>1;
@@ -12,7 +12,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   if(coords&&age>=0&&age<=20000&&coords.accuracy<=150&&Number.isFinite(coords.latitude)&&Math.abs(coords.latitude)<=90&&Number.isFinite(coords.longitude)&&Math.abs(coords.longitude)<=180)return {lat:coords.latitude,lon:coords.longitude};
   return getOrigin();
  }
- const planFor=(stops=getStops())=>navigationPlan(stops,$('navigator-app').value,{origin:currentOrigin(),limit:mobile()?4:10,returnPoint:$('return').checked&&getStops().length?(base||getOrigin()):null});
+ const planFor=(stops=getStops())=>navigationPlan(stops,$('navigator-app').value,{origin:currentOrigin(),limit:browserChunks?4:10,returnPoint:$('return').checked&&getStops().length?(base||getOrigin()):null});
  function closeArrival(){arrivalId=null;if($('arrival-dialog').open)$('arrival-dialog').close();notification?.close();registration?.getNotifications({tag:'fleteruta-arrival'}).then(items=>items.forEach(n=>n.close())).catch(()=>{});}
  function sync(){
   const target=next(),key=target?`${target.id}:${target.lat}:${target.lon}`:null;
@@ -22,9 +22,11 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
   const plan=planFor();$('trip-go').hidden=!plan.url;
   if(plan.url)$('trip-go').href=plan.url;else $('trip-go').removeAttribute('href');
-  $('trip-go').textContent='Abrir recorrido ↗';
+  $('trip-go').textContent=$('navigator-app').value==='waze'?'Abrir próxima parada en Waze ↗':`Abrir ${plan.sent.length} ${plan.sent.length===1?'parada':'paradas'} en Google Maps ↗`;
   $('trip-go').setAttribute('aria-label',`Abrir recorrido en ${$('navigator-app').value==='waze'?'Waze':'Google Maps'}`);
-  $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze acepta un destino por enlace.':mobile()?'Enlaces de Google Maps: hasta 4 destinos en navegador móvil.':'Enlaces de Google Maps: hasta 10 destinos.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
+  $('maps-browser-mode').hidden=$('navigator-app').value!=='maps'||!mobile()||(plan.total<=4&&!browserChunks);
+  $('maps-browser-mode').textContent=browserChunks?'Volver a enviar hasta 10 paradas':'Si Maps muestra solo 4, usar bloques de 4';
+  $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze acepta un destino por enlace.':browserChunks?'Modo navegador: hasta 4 destinos por enlace.':mobile()?'Google Maps app: hasta 10 destinos. Si se abre en navegador móvil, puede mostrar solo 4; usá bloques de 4.':'Google Maps: hasta 10 destinos por enlace.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
   if(active&&!target)stop('Reparto completado. Seguimiento detenido.');
  }
  function stop(text='Seguimiento detenido. Podés volver a iniciarlo.'){
@@ -79,6 +81,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  };
  $('trip-stop').onclick=()=>stop();
  $('navigator-app').onchange=()=>{try{localStorage.setItem('fleteruta-navigator',$('navigator-app').value);}catch{}sync();if(arrivalId){const target=next();if(target)showArrival(target);}};
+ $('maps-browser-mode').onclick=()=>{browserChunks=!browserChunks;sync();message(browserChunks?'Modo navegador activado: se abrirán hasta 4 paradas por vez.':'Se enviarán hasta 10 paradas a Google Maps.');};
  $('arrival-no').onclick=()=>{detector.snooze();closeArrival();$('trip-status').textContent='Entrega pendiente. Volveremos a avisar después de un minuto si seguís cerca.';};
  $('arrival-dialog').addEventListener('cancel',e=>{e.preventDefault();$('arrival-no').click();});
  $('arrival-yes').onclick=event=>{
