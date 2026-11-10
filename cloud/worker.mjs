@@ -1,4 +1,4 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/camera-address.mjs','/profile.js','/notifications-sw.js','/estado-proyecto.js']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/camera-address.mjs','/camera-match.mjs','/profile.js','/notifications-sw.js','/estado-proyecto.js']);
 const PRIVATE=new Set(['/','/index.html','/apps','/apps.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
 const OCR=new Set(['tesseract.esm.min.js','worker.min.js','tesseract-core-lstm.wasm.js','tesseract-core-lstm.wasm','tesseract-core-simd-lstm.wasm.js','tesseract-core-simd-lstm.wasm','tesseract-core-relaxedsimd-lstm.wasm.js','tesseract-core-relaxedsimd-lstm.wasm','spa.traineddata.gz'].map(p=>'/vendor/ocr/'+p));

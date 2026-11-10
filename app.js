@@ -5,6 +5,7 @@ import {mountCloudStore} from './cloud-sync.js';
 import {mountAddressList} from './address-list.js';
 import {mountPasswordForm} from './profile.js';
 import {readAddressPhoto} from './camera-address.mjs';
+import {verifiedCameraResult} from './camera-match.mjs';
 const $=id=>document.getElementById(id);
 const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
 if(boot.mfaRequired)location.replace('/login');
@@ -129,18 +130,65 @@ $('add-current').onclick=()=>task(async()=>{
 });
 $('auto-order').onclick=()=>{trip?.stop('Seguimiento detenido para reordenar. Volvé a iniciarlo cuando esté listo.');manualOrder=false;changed('Orden automático activado. Reacomodando las paradas por cercanía y calles.');};
 $('search-scope').onchange=()=>{$('results').replaceChildren();searchHint();message('Zona de búsqueda actualizada. Volvé a buscar la dirección.');};
+function addGeocoded(result,query,old=stops.find(s=>s.id===editing)){
+ const lat=Number(result.lat),lon=Number(result.lon);if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)throw Error('La ubicación recibida no es válida.');
+ if(!old&&stops.length>=40)throw Error('Llegaste a las 40 entregas.');
+ const road=result.address?.road||result.address?.pedestrian||result.address?.residential||'';
+ const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,shortAddress:road?[road,result.address.house_number].filter(Boolean).join(' '):shortAddress({address:result.display_name}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
+ if(old)stops[stops.indexOf(old)]=item;else {const end=stops.findIndex(s=>s.returnPoint&&!s.done);if(end>=0)stops.splice(end,0,item);else stops.push(item);}focusedId=item.id;editing=null;
+ $('search-form').reset();$('results').replaceChildren();changed(old?'Dirección corregida. Recorrido actualizado automáticamente.':'Dirección agregada a la tabla y al mapa. El recorrido se acomoda automáticamente.');
+ if(!old)addressList?.confirmed(query);
+ return item;
+}
 const photoInput=$('address-photo');
-$('camera-button').onclick=()=>photoInput.click();
-photoInput.onchange=async()=>{
- const file=photoInput.files?.[0];if(!file)return;
- $('camera-button').disabled=true;$('results').replaceChildren();message('Leyendo la dirección de la foto…');
+const cameraDialog=$('camera-dialog'),cameraVideo=$('camera-video');let cameraStream=null,cameraTimer=null,cameraBusy=false,cameraSession=0;
+function cameraStatus(text){$('camera-status').textContent=text;}
+function stopCamera(){cameraSession++;clearTimeout(cameraTimer);cameraTimer=null;cameraStream?.getTracks().forEach(track=>track.stop());cameraStream=null;cameraVideo.srcObject=null;}
+function closeCamera(){stopCamera();cameraDialog.close();}
+function cameraFailure(text){cameraStatus(text);$('camera-retry').hidden=false;$('camera-scan').hidden=true;$('camera-detected').hidden=!$('camera-detected').textContent;}
+async function scanFile(file){
+ if(cameraBusy||!cameraDialog.open)return;cameraBusy=true;const session=cameraSession;
+ $('camera-retry').hidden=true;$('camera-scan').disabled=true;$('camera-file').disabled=true;cameraStatus('Leyendo la dirección…');
  try{
-  const address=await readAddressPhoto(file,percent=>message(`Leyendo la dirección de la foto… ${percent}%`));
-  if(!address)throw Error('No encontré una dirección clara junto a “Enviar a”. Sacá otra foto con esa línea bien enfocada o escribila a mano.');
-  $('address').value=address;$('address').focus();message('Dirección detectada. Revisá calle, altura y localidad; después tocá Buscar dirección.');
- }catch(error){message(error.message||'No pude leer la foto. Probá de nuevo o escribí la dirección.',true);}
- finally{photoInput.value='';$('camera-button').disabled=false;}
-};
+  if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas.');
+  const address=await readAddressPhoto(file,percent=>{if(session===cameraSession)cameraStatus(`Leyendo la dirección… ${percent}%`);});
+  if(session!==cameraSession)return;
+  if(!address)throw Error('No se logró reconocer la dirección. Apuntá a “Enviar a” y volvé a intentar.');
+  $('camera-detected').textContent=address;$('camera-detected').hidden=false;$('address').value=address;
+  cameraStatus('Comprobando la dirección en el mapa…');
+  const search=addressSearch(address,origin,$('search-scope').value);
+  let results=cache[search.key];if(!results){await new Promise(r=>setTimeout(r,Math.max(0,1100-(Date.now()-lastSearch))));lastSearch=Date.now();results=await json(search.url);if(!Array.isArray(results))throw Error('No se logró reconocer la dirección.');cache[search.key]=results;save();}
+  if(session!==cameraSession)return;
+  const result=verifiedCameraResult(address,localAddressResults(results,search));
+  if(!result)throw Error('No se logró reconocer la dirección en el mapa. Revisala en el buscador o volvé a intentar.');
+  addGeocoded(result,address);stopCamera();cameraStatus('Dirección agregada');$('camera-detected').textContent=result.display_name;
+  $('camera-retry').textContent='Escanear otra';$('camera-retry').hidden=false;$('camera-close').textContent='Seguir agregando';$('camera-scan').hidden=true;
+ }catch(error){if(session===cameraSession){cameraFailure(error.message||'No se logró reconocer la dirección. Volvé a intentar.');message(error.message||'No se logró reconocer la dirección.',true);}}
+ finally{cameraBusy=false;$('camera-scan').disabled=false;$('camera-file').disabled=false;photoInput.value='';}
+}
+async function scanCamera(){
+ if(!cameraStream||cameraBusy)return;
+ const canvas=document.createElement('canvas');canvas.width=cameraVideo.videoWidth;canvas.height=cameraVideo.videoHeight;
+ if(!canvas.width||!canvas.height){cameraFailure('La cámara todavía no está lista. Volvé a intentar.');return;}
+ canvas.getContext('2d').drawImage(cameraVideo,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.92));canvas.width=0;canvas.height=0;
+ if(blob)await scanFile(blob);
+}
+async function openCamera(){
+ if(cameraDialog.open)return;
+ $('camera-detected').textContent='';$('camera-detected').hidden=true;$('camera-scan').hidden=false;$('camera-retry').hidden=true;$('camera-retry').textContent='Volver a intentar';$('camera-close').textContent='Volver atrás';cameraStatus('Apuntá a la línea “Enviar a”.');cameraDialog.showModal();
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error();
+  cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  if(!cameraDialog.open){stopCamera();return;}
+  cameraVideo.srcObject=cameraStream;await cameraVideo.play();cameraStatus('Mantené el comprobante quieto. Leyendo…');
+  cameraTimer=setTimeout(scanCamera,1500);
+ }catch{cameraStatus('No se pudo abrir la cámara. Elegí una foto o permití el acceso a la cámara.');$('camera-scan').hidden=true;}
+}
+$('camera-button').onclick=openCamera;$('camera-scan').onclick=scanCamera;
+$('camera-retry').onclick=()=>{if(!cameraStream){closeCamera();openCamera();return;}$('camera-retry').hidden=true;$('camera-scan').hidden=false;$('camera-detected').hidden=true;cameraStatus('Apuntá a “Enviar a”.');cameraTimer=setTimeout(scanCamera,1000);};
+$('camera-file').onclick=()=>photoInput.click();$('camera-close').onclick=closeCamera;
+cameraDialog.addEventListener('close',stopCamera);cameraDialog.addEventListener('cancel',stopCamera);
+photoInput.onchange=()=>{const file=photoInput.files?.[0];if(file)scanFile(file);};
 $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas. Eliminá una para agregar otra.');
  const query=$('address').value.trim();if(query.length<4)throw Error('Ingresá calle, altura y localidad.');
@@ -153,13 +201,7 @@ $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  results.forEach(result=>{
   const b=button(result.display_name,()=>task(async()=>{
    if($('address').value.trim()!==queryAtSearch||editing!==editAtSearch||addressSearch(queryAtSearch,origin,$('search-scope').value).key!==search.key)throw Error('La dirección o la zona cambió. Volvé a buscar antes de confirmar.');
-   const lat=Number(result.lat),lon=Number(result.lon);if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)throw Error('La ubicación recibida no es válida.');
-   const old=stops.find(s=>s.id===editing);if(!old&&stops.length>=40)throw Error('Llegaste a las 40 entregas.');
-   const road=result.address?.road||result.address?.pedestrian||result.address?.residential||'';
-   const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,shortAddress:road?[road,result.address.house_number].filter(Boolean).join(' '):shortAddress({address:result.display_name}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
-   if(old)stops[stops.indexOf(old)]=item;else {const end=stops.findIndex(s=>s.returnPoint&&!s.done);if(end>=0)stops.splice(end,0,item);else stops.push(item);}focusedId=item.id;editing=null;
-   $('search-form').reset();$('results').replaceChildren();changed(old?'Dirección corregida. Recorrido actualizado automáticamente.':'Dirección agregada a la tabla y al mapa. El recorrido se acomoda automáticamente.');
-   if(!old)addressList?.confirmed(queryAtSearch);
+   addGeocoded(result,queryAtSearch);
   }));b.className='result';const km=distanceKm(search.center,{lat:Number(result.lat),lon:Number(result.lon)});b.append(node('span',`${km.toFixed(1)} km ${origin?'de tu ubicación':'de CABA'} · Confirmar esta ubicación`));$('results').append(b);
  });message('Seleccioná la dirección correcta. Al confirmarla se agrega y se ordena sola.');
  });};
