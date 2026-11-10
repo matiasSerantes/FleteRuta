@@ -153,7 +153,7 @@ async function scanFile(file){
   if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas.');
   const address=await readAddressPhoto(file,percent=>{if(session===cameraSession)cameraStatus(`Leyendo la dirección… ${percent}%`);});
   if(session!==cameraSession)return;
-  if(!address)throw Error('No se logró reconocer la dirección. Mostrá dentro del recuadro “Enviar a”, la calle, la altura y la localidad.');
+  if(!address)throw Error('No se logró reconocer la dirección. Mostrá dentro del recuadro la calle, la altura y la localidad o el código postal B.');
   $('camera-detected').textContent=address;$('camera-detected').hidden=false;$('address').value=address;
   cameraStatus('Comprobando la dirección en el mapa…');
   const search=addressSearch(address,origin,$('search-scope').value);
@@ -175,7 +175,7 @@ async function scanCamera(){
 }
 async function openCamera(){
  if(cameraDialog.open)return;
- $('camera-detected').textContent='';$('camera-detected').hidden=true;$('camera-scan').hidden=false;$('camera-retry').hidden=true;$('camera-retry').textContent='Volver a intentar';$('camera-close').textContent='Volver atrás';cameraStatus('Colocá la línea completa dentro del recuadro.');cameraDialog.showModal();
+ $('camera-detected').textContent='';$('camera-detected').hidden=true;$('camera-scan').hidden=false;$('camera-retry').hidden=true;$('camera-retry').textContent='Volver a intentar';$('camera-close').textContent='Volver atrás';cameraStatus('Colocá la dirección completa dentro del recuadro.');cameraDialog.showModal();
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw Error();
   cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
@@ -185,7 +185,7 @@ async function openCamera(){
  }catch{cameraStatus('No se pudo abrir la cámara. Elegí una foto o permití el acceso a la cámara.');$('camera-scan').hidden=true;}
 }
 $('camera-button').onclick=openCamera;$('camera-scan').onclick=scanCamera;
-$('camera-retry').onclick=()=>{if(!cameraStream){closeCamera();openCamera();return;}$('camera-retry').hidden=true;$('camera-scan').hidden=false;$('camera-detected').hidden=true;cameraStatus('Apuntá a “Enviar a”.');cameraTimer=setTimeout(scanCamera,1000);};
+$('camera-retry').onclick=()=>{if(!cameraStream){closeCamera();openCamera();return;}$('camera-retry').hidden=true;$('camera-scan').hidden=false;$('camera-detected').hidden=true;cameraStatus('Apuntá a la calle, altura y localidad.');cameraTimer=setTimeout(scanCamera,1000);};
 $('camera-file').onclick=()=>photoInput.click();$('camera-close').onclick=closeCamera;
 cameraDialog.addEventListener('close',stopCamera);cameraDialog.addEventListener('cancel',stopCamera);
 photoInput.onchange=()=>{const file=photoInput.files?.[0];if(file)scanFile(file);};

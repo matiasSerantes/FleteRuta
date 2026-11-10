@@ -11,3 +11,10 @@ test('no confirma una calle, altura o localidad distinta',()=>{
  const query='DR ANTONIO MALAVER 1759, OLIVOS BUENOS AIRES';
  for(const result of [{...exact,address:{...exact.address,house_number:'1758'}},{...exact,address:{...exact.address,road:'Antonio Saenz'}},{...exact,display_name:'1759, Doctor Antonio Malaver, San Isidro, Buenos Aires'}])assert.equal(verifiedCameraResult(query,[result]),null);
 });
+
+test('verifica la dirección con altura primero y código postal B',()=>{
+ assert.equal(verifiedCameraResult('1759 DR ANTONIO MALAVER OLIVOS B1636',[exact]),exact);
+ const withPostcode={...exact,address:{...exact.address,postcode:'1636'}};
+ assert.equal(verifiedCameraResult('1759 DR ANTONIO MALAVER B1636',[withPostcode]),withPostcode);
+ assert.equal(verifiedCameraResult('1759 DR ANTONIO MALAVER B1636',[exact]),null);
+});
