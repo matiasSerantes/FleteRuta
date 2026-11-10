@@ -15,9 +15,10 @@ export async function createApp({authPath=path.join(root,'.private','auth.json')
  const dummySalt=randomBytes(16).toString('hex');
  const publicFiles=new Map([['/login','login.html'],['/login.js','login.js'],['/app.css','app.css']]);
  const privateFiles=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.mjs','core.mjs'],['/estado-proyecto.html','estado-proyecto.html']]);
- for(const name of ['cloud-sync.js','address-list.js','profile.js','trip.js','notifications-sw.js','planner.mjs','estado-proyecto.js','INICIAR.md','README.md','VERIFICACION.md'])privateFiles.set('/'+name,name);
+ for(const name of ['cloud-sync.js','address-list.js','camera-address.mjs','profile.js','trip.js','notifications-sw.js','planner.mjs','estado-proyecto.js','INICIAR.md','README.md','VERIFICACION.md'])privateFiles.set('/'+name,name);
+ for(const name of ['tesseract.esm.min.js','worker.min.js','tesseract-core-lstm.wasm.js','tesseract-core-lstm.wasm','tesseract-core-simd-lstm.wasm.js','tesseract-core-simd-lstm.wasm','tesseract-core-relaxedsimd-lstm.wasm.js','tesseract-core-relaxedsimd-lstm.wasm','spa.traineddata.gz'])privateFiles.set('/vendor/ocr/'+name,'vendor/ocr/'+name);
  for(const name of ['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'])privateFiles.set('/vendor/leaflet/'+name,'vendor/leaflet/'+name);
- const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'};
+ const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.wasm':'application/wasm','.gz':'application/gzip'};
  const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'");

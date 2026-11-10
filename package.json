@@ -15,5 +15,8 @@
     "@electric-sql/pglite": "^0.5.15",
     "happy-dom": "^21.0.4",
     "wrangler": "^4.157.0"
+  },
+  "dependencies": {
+    "tesseract.js": "^7.0.0"
   }
 }

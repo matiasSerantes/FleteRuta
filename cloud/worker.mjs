@@ -1,14 +1,15 @@
-const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/profile.js','/notifications-sw.js','/estado-proyecto.js']);
+const PUBLIC=new Set(['/login','/login.html','/login.js','/apps.js','/admin.js','/app.css','/app.js','/core.mjs','/planner.mjs','/trip.js','/cloud-sync.js','/address-list.js','/camera-address.mjs','/profile.js','/notifications-sw.js','/estado-proyecto.js']);
 const PRIVATE=new Set(['/','/index.html','/apps','/apps.html','/admin','/admin.html','/estado-proyecto.html']);
 const LIBRARY=new Set(['leaflet.js','leaflet.css','images/layers.png','images/layers-2x.png','images/marker-icon.png','images/marker-icon-2x.png','images/marker-shadow.png'].map(p=>'/vendor/leaflet/'+p));
-const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png'};
+const OCR=new Set(['tesseract.esm.min.js','worker.min.js','tesseract-core-lstm.wasm.js','tesseract-core-lstm.wasm','tesseract-core-simd-lstm.wasm.js','tesseract-core-simd-lstm.wasm','tesseract-core-relaxedsimd-lstm.wasm.js','tesseract-core-relaxedsimd-lstm.wasm','spa.traineddata.gz'].map(p=>'/vendor/ocr/'+p));
+const MIME={mjs:'text/javascript; charset=utf-8',js:'text/javascript; charset=utf-8',html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',png:'image/png',wasm:'application/wasm',gz:'application/gzip'};
 export function validateRoute(body){
  if(!body||typeof body!=='object')return false;
  if(!Array.isArray(body.stops)||body.stops.length>40||typeof body.roundTrip!=='boolean'||typeof body.manualOrder!=='boolean'||!Number.isInteger(body.revision)||body.revision<0)return false;
  const ids=new Set();return body.stops.every(s=>{if(!s||typeof s.id!=='string'||!s.id.length||s.id.length>80||ids.has(s.id))return false;ids.add(s.id);return typeof s.address==='string'&&s.address.length>0&&s.address.length<=2500&&Number.isFinite(s.lat)&&Math.abs(s.lat)<=90&&Number.isFinite(s.lon)&&Math.abs(s.lon)<=180&&typeof s.done==='boolean'&&(s.shortAddress===undefined||typeof s.shortAddress==='string'&&s.shortAddress.length>0&&s.shortAddress.length<=300)&&(s.returnPoint===undefined||typeof s.returnPoint==='boolean')&&(s.recipient===undefined||typeof s.recipient==='string'&&s.recipient.length<=150)&&(s.notes===undefined||typeof s.notes==='string'&&s.notes.length<=300);});
 }
 export async function handle(request,env,upstream=fetch){
- const url=new URL(request.url),headers=new Headers({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"});
+ const url=new URL(request.url),headers=new Headers({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin','Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"});
  const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:new Headers([...headers,['Content-Type','application/json; charset=utf-8']])});
  const redirect=where=>new Response(null,{status:303,headers:new Headers([...headers,['Location',where]])});
  const cookieOptions=`HttpOnly; SameSite=Strict; Path=/${url.protocol==='https:'?'; Secure':''}`;
@@ -123,11 +124,12 @@ export async function handle(request,env,upstream=fetch){
   }
   if(!['GET','HEAD'].includes(request.method))return json({error:'No encontrado.'},404);
   if(PRIVATE.has(url.pathname)){const auth=await authenticate();if(!auth||auth.mfaRequired)return redirect('/login');if((url.pathname==='/admin'||url.pathname==='/admin.html')&&!auth.isAdmin)return json({error:'Acceso exclusivo del administrador.'},403);}
-  if(!PRIVATE.has(url.pathname)&&!PUBLIC.has(url.pathname)&&!LIBRARY.has(url.pathname))return json({error:'No encontrado.'},404);
+  if(!PRIVATE.has(url.pathname)&&!PUBLIC.has(url.pathname)&&!LIBRARY.has(url.pathname)&&!OCR.has(url.pathname))return json({error:'No encontrado.'},404);
   const assetURL=new URL(url);if(url.pathname==='/')assetURL.pathname='/index.html';if(url.pathname==='/login')assetURL.pathname='/login.html';if(url.pathname==='/admin')assetURL.pathname='/admin.html';
   if(url.pathname==='/apps')assetURL.pathname='/apps.html';
   const asset=await env.ASSETS.fetch(new Request(assetURL,{method:request.method}));
   headers.set('Content-Type',MIME[assetURL.pathname.split('.').at(-1)]||'application/octet-stream');
+  if(OCR.has(url.pathname))headers.set('Cache-Control','public, max-age=86400');
   return new Response(asset.body,{status:asset.status,headers});
  }catch(error){return json({error:error.status?error.message:'No se pudo conectar con el servicio. Volvé a intentar.'},error.status||503);}
 }

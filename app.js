@@ -4,6 +4,7 @@ import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
 import {mountAddressList} from './address-list.js';
 import {mountPasswordForm} from './profile.js';
+import {readAddressPhoto} from './camera-address.mjs';
 const $=id=>document.getElementById(id);
 const boot=await fetch('/auth/status').then(r=>{if(!r.ok)throw Error();return r.json();}).catch(()=>({}));
 if(boot.mfaRequired)location.replace('/login');
@@ -128,6 +129,18 @@ $('add-current').onclick=()=>task(async()=>{
 });
 $('auto-order').onclick=()=>{trip?.stop('Seguimiento detenido para reordenar. Volvé a iniciarlo cuando esté listo.');manualOrder=false;changed('Orden automático activado. Reacomodando las paradas por cercanía y calles.');};
 $('search-scope').onchange=()=>{$('results').replaceChildren();searchHint();message('Zona de búsqueda actualizada. Volvé a buscar la dirección.');};
+const photoInput=$('address-photo');
+$('camera-button').onclick=()=>photoInput.click();
+photoInput.onchange=async()=>{
+ const file=photoInput.files?.[0];if(!file)return;
+ $('camera-button').disabled=true;$('results').replaceChildren();message('Leyendo la dirección de la foto…');
+ try{
+  const address=await readAddressPhoto(file,percent=>message(`Leyendo la dirección de la foto… ${percent}%`));
+  if(!address)throw Error('No encontré una dirección clara junto a “Enviar a”. Sacá otra foto con esa línea bien enfocada o escribila a mano.');
+  $('address').value=address;$('address').focus();message('Dirección detectada. Revisá calle, altura y localidad; después tocá Buscar dirección.');
+ }catch(error){message(error.message||'No pude leer la foto. Probá de nuevo o escribí la dirección.',true);}
+ finally{photoInput.value='';$('camera-button').disabled=false;}
+};
 $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
  if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas. Eliminá una para agregar otra.');
  const query=$('address').value.trim();if(query.length<4)throw Error('Ingresá calle, altura y localidad.');
