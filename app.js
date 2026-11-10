@@ -153,14 +153,14 @@ async function scanFile(file){
   if(stops.length>=40&&!editing)throw Error('Llegaste a las 40 entregas.');
   const address=await readAddressPhoto(file,percent=>{if(session===cameraSession)cameraStatus(`Leyendo la dirección… ${percent}%`);});
   if(session!==cameraSession)return;
-  if(!address)throw Error('No se logró reconocer la dirección. Apuntá a “Enviar a” y volvé a intentar.');
+  if(!address)throw Error('No se logró reconocer la dirección. Mostrá dentro del recuadro “Enviar a”, la calle, la altura y la localidad.');
   $('camera-detected').textContent=address;$('camera-detected').hidden=false;$('address').value=address;
   cameraStatus('Comprobando la dirección en el mapa…');
   const search=addressSearch(address,origin,$('search-scope').value);
   let results=cache[search.key];if(!results){await new Promise(r=>setTimeout(r,Math.max(0,1100-(Date.now()-lastSearch))));lastSearch=Date.now();results=await json(search.url);if(!Array.isArray(results))throw Error('No se logró reconocer la dirección.');cache[search.key]=results;save();}
   if(session!==cameraSession)return;
   const result=verifiedCameraResult(address,localAddressResults(results,search));
-  if(!result)throw Error('No se logró reconocer la dirección en el mapa. Revisala en el buscador o volvé a intentar.');
+  if(!result)throw Error('Leí parte de la dirección, pero no encontré calle, altura y localidad exactas en el mapa. Alejá el celular y volvé a intentar, o revisá el texto en el buscador.');
   addGeocoded(result,address);stopCamera();cameraStatus('Dirección agregada');$('camera-detected').textContent=result.display_name;
   $('camera-retry').textContent='Escanear otra';$('camera-retry').hidden=false;$('camera-close').textContent='Seguir agregando';$('camera-scan').hidden=true;
  }catch(error){if(session===cameraSession){cameraFailure(error.message||'No se logró reconocer la dirección. Volvé a intentar.');message(error.message||'No se logró reconocer la dirección.',true);}}
@@ -175,13 +175,13 @@ async function scanCamera(){
 }
 async function openCamera(){
  if(cameraDialog.open)return;
- $('camera-detected').textContent='';$('camera-detected').hidden=true;$('camera-scan').hidden=false;$('camera-retry').hidden=true;$('camera-retry').textContent='Volver a intentar';$('camera-close').textContent='Volver atrás';cameraStatus('Apuntá a la línea “Enviar a”.');cameraDialog.showModal();
+ $('camera-detected').textContent='';$('camera-detected').hidden=true;$('camera-scan').hidden=false;$('camera-retry').hidden=true;$('camera-retry').textContent='Volver a intentar';$('camera-close').textContent='Volver atrás';cameraStatus('Colocá la línea completa dentro del recuadro.');cameraDialog.showModal();
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw Error();
   cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
   if(!cameraDialog.open){stopCamera();return;}
   cameraVideo.srcObject=cameraStream;await cameraVideo.play();cameraStatus('Mantené el comprobante quieto. Leyendo…');
-  cameraTimer=setTimeout(scanCamera,1500);
+ cameraTimer=setTimeout(scanCamera,3500);
  }catch{cameraStatus('No se pudo abrir la cámara. Elegí una foto o permití el acceso a la cámara.');$('camera-scan').hidden=true;}
 }
 $('camera-button').onclick=openCamera;$('camera-scan').onclick=scanCamera;

@@ -27,7 +27,18 @@ export async function readAddressPhoto(file,onProgress=()=>{}){
    crop.getContext('2d').drawImage(canvas,0,Math.round(canvas.height*.30),canvas.width,crop.height,0,0,crop.width,crop.height);
    const first=await worker.recognize(crop);crop.width=0;crop.height=0;
    const found=extractDeliveryAddress(first.data.text);if(found)return found;
-   const result=await worker.recognize(canvas);return extractDeliveryAddress(result.data.text);
+   const full=extractDeliveryAddress((await worker.recognize(canvas)).data.text);if(full)return full;
+   for(const clockwise of [true,false]){
+    const turned=document.createElement('canvas');turned.width=canvas.height;turned.height=canvas.width;
+    const context=turned.getContext('2d');context.translate(clockwise?turned.width:0,clockwise?0:turned.height);context.rotate(clockwise?Math.PI/2:-Math.PI/2);context.drawImage(canvas,0,0);
+    const middle=document.createElement('canvas');middle.width=turned.width;middle.height=Math.round(turned.height*.22);
+    middle.getContext('2d').drawImage(turned,0,Math.round(turned.height*.30),turned.width,middle.height,0,0,middle.width,middle.height);
+    const cropped=extractDeliveryAddress((await worker.recognize(middle)).data.text);middle.width=0;middle.height=0;
+    if(cropped){turned.width=0;turned.height=0;return cropped;}
+    const result=extractDeliveryAddress((await worker.recognize(turned)).data.text);turned.width=0;turned.height=0;
+    if(result)return result;
+   }
+   return '';
   }
   finally{await worker.terminate();canvas.width=0;canvas.height=0;}
  }finally{bitmap.close();}
