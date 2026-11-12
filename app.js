@@ -57,7 +57,7 @@ function render(){
  $('counter').textContent=`${stops.length} / 40`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
  stops.forEach((s,i)=>{
   const row=node('tr',null,'delivery-row'+(s.done?' done':'')+(s.id===focusedId?' selected':''));row.dataset.id=s.id;
-  const address=node('td',null,'address-cell'),view=button('',()=>{const details=address.querySelector('details');details.open=!details.open;view.setAttribute('aria-expanded',String(details.open));selectStop(s.id);},`Ver dirección completa de parada ${i+1}`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',shortAddress(s),'address-text'));view.setAttribute('aria-expanded','false');const detail=node('details',null,'address-details');detail.append(node('summary','Ver barrio y dirección completa'),node('p',s.address));if(s.resolvedAddress)detail.append(node('p','Punto encontrado en mapa: '+s.resolvedAddress));if(s.heightVerified!==true&&!s.returnPoint)detail.append(node('p','⚠ Altura sin confirmar: revisá la dirección antes de salir.'));if(s.recipient)detail.append(node('p','Cliente: '+s.recipient));if(s.notes)detail.append(node('p',s.notes));address.append(view,detail);
+  const address=node('td',null,'address-cell'),view=button('',()=>{const details=address.querySelector('details');details.open=!details.open;view.setAttribute('aria-expanded',String(details.open));selectStop(s.id);},`Ver dirección completa de parada ${i+1}`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',shortAddress(s),'address-text'));view.setAttribute('aria-expanded','false');const detail=node('details',null,'address-details');detail.append(node('summary','Ver barrio y dirección completa'),node('p',s.address));if(s.resolvedAddress)detail.append(node('p','Punto encontrado en mapa: '+s.resolvedAddress));if(s.manualPoint)detail.append(node('p','Punto elegido manualmente en el mapa.'));else if(s.heightVerified!==true&&!s.returnPoint)detail.append(node('p','⚠ Altura sin confirmar: revisá la dirección antes de salir.'));if(s.recipient)detail.append(node('p','Cliente: '+s.recipient));if(s.notes)detail.append(node('p',s.notes));address.append(view,detail);
   const state=node('td');state.append(node('span',s.done?'Entregada':'Pendiente','delivery-status '+(s.done?'is-done':'')));
   const actions=node('td',null,'actions-cell'),group=node('div',null,'actions');
   for(const [delta,label] of [[-1,'↑'],[1,'↓']]){
@@ -130,16 +130,27 @@ $('add-current').onclick=()=>task(async()=>{
 });
 $('auto-order').onclick=()=>{trip?.stop('Seguimiento detenido para reordenar. Volvé a iniciarlo cuando esté listo.');manualOrder=false;changed('Orden automático activado. Reacomodando las paradas por cercanía y calles.');};
 $('search-scope').onchange=()=>{$('results').replaceChildren();searchHint();message('Zona de búsqueda actualizada. Volvé a buscar la dirección.');};
-function addGeocoded(result,query,old=stops.find(s=>s.id===editing)){
+function addGeocoded(result,query,old=stops.find(s=>s.id===editing),manual=false){
  const lat=Number(result.lat),lon=Number(result.lon);if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)throw Error('La ubicación recibida no es válida.');
  if(!old&&stops.length>=40)throw Error('Llegaste a las 40 entregas.');
- const heightVerified=houseNumberMatches(query,result);
- const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:query,resolvedAddress:result.display_name,heightVerified,shortAddress:shortAddress({address:query}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
+ const heightVerified=!manual&&houseNumberMatches(query,result);
+ const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:query,resolvedAddress:manual?'':result.display_name,heightVerified,manualPoint:manual,shortAddress:shortAddress({address:query}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
  if(old)stops[stops.indexOf(old)]=item;else {const end=stops.findIndex(s=>s.returnPoint&&!s.done);if(end>=0)stops.splice(end,0,item);else stops.push(item);}focusedId=item.id;editing=null;
- $('search-form').reset();$('results').replaceChildren();changed(heightVerified?(old?'Dirección corregida con altura confirmada.':'Dirección agregada con altura confirmada.'): 'Dirección agregada, pero la altura no está confirmada en el mapa. Revisá el destino antes de salir.');
+ $('search-form').reset();$('results').replaceChildren();changed(manual?'Ubicación elegida en el mapa y agregada al recorrido.':heightVerified?(old?'Dirección corregida con altura confirmada.':'Dirección agregada con altura confirmada.'): 'Dirección agregada, pero la altura no está confirmada en el mapa. Revisá el destino antes de salir.');
  if(!old)addressList?.confirmed(query);
  return item;
 }
+const pinDialog=$('pin-dialog');let pinMap=null,pinMarker=null,pinChoice=null;
+$('pin-open').onclick=()=>{
+ const query=$('address').value.trim();if(query.length<4){message('Escribí primero la calle, altura y localidad o las entrecalles.',true);$('address').focus();return;}
+ if(stops.length>=40&&!editing){message('Llegaste a las 40 entregas. Eliminá una para agregar otra.',true);return;}
+ if(!window.L){message('El mapa todavía no está disponible. Revisá Internet e intentá otra vez.',true);return;}
+ $('pin-address').textContent=query;pinChoice=null;$('pin-confirm').disabled=true;$('pin-status').textContent='Tocá el mapa para elegir un punto.';pinDialog.showModal();
+ if(!pinMap){pinMap=L.map('pin-map');L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(pinMap);pinMap.on('click',event=>{pinChoice=event.latlng;if(pinMarker)pinMarker.setLatLng(pinChoice);else pinMarker=L.marker(pinChoice).addTo(pinMap);$('pin-confirm').disabled=false;$('pin-status').textContent='Punto marcado. Acercá el mapa para comprobar la calle y tocá Agregar esta ubicación.';});}
+ const old=stops.find(s=>s.id===editing),center=old||origin||{lat:-34.6037,lon:-58.3816};pinMap.setView([center.lat,center.lon],old?17:origin?15:11);if(pinMarker){pinMap.removeLayer(pinMarker);pinMarker=null;}setTimeout(()=>pinMap.invalidateSize(),50);
+};
+$('pin-cancel').onclick=()=>pinDialog.close();
+$('pin-confirm').onclick=()=>{if(!pinChoice)return;const query=$('pin-address').textContent;if($('address').value.trim()!==query){$('pin-status').textContent='La dirección cambió. Volvé atrás y abrí el mapa nuevamente.';return;}addGeocoded({lat:pinChoice.lat,lon:pinChoice.lng},query,stops.find(s=>s.id===editing),true);pinDialog.close();};
 const photoInput=$('address-photo');
 const cameraDialog=$('camera-dialog'),cameraVideo=$('camera-video');let cameraStream=null,cameraTimer=null,cameraBusy=false,cameraSession=0;
 function cameraStatus(text){$('camera-status').textContent=text;}

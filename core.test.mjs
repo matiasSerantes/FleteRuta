@@ -36,6 +36,13 @@ test('Maps recibe la altura escrita y no la coordenada aproximada de la calle',(
  assert.equal(houseNumberMatches('Calle Falsa 1234, CABA',{address:{road:'Calle Falsa'}}),false);
  assert.equal(houseNumberMatches('Calle Falsa 1234, CABA',{address:{road:'Calle Falsa',house_number:'1234'}}),true);
 });
+test('un punto elegido manualmente se envía como coordenada exacta a Maps y Waze',()=>{
+ const point={lat:-34.61,lon:-58.41,address:'Calle de Prueba 123, CABA',manualPoint:true,done:false};
+ const maps=new URL(navigationPlan([point],'maps',{origin:{lat:-34.5,lon:-58.3}}).url);
+ const waze=new URL(navigationPlan([point],'waze').url);
+ assert.equal(maps.searchParams.get('destination'),'-34.61,-58.41');
+ assert.equal(waze.searchParams.get('ll'),'-34.61,-58.41');
+});
 test('recupera la altura original de paradas antiguas cuando existe en el caché local',()=>{
  const result={display_name:'Calle Falsa, CABA',lat:'-34.6',lon:'-58.4',address:{country_code:'ar',road:'Calle Falsa'}};
  const key='address-local-v1:'+addressSearch('Calle Falsa 1234, CABA',BUENOS_AIRES).url.href;

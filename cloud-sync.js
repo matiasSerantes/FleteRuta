@@ -2,7 +2,7 @@ export function mountCloudStore({enabled,storageKey='fleteruta-cloud-state',getS
  const $=id=>document.getElementById(id),view=document.defaultView;
  if(!enabled)return {initialize:async()=>{},changed(){}};
  let revision=0,synced='',dirty=false,ready=false,saving=false,conflict=false,applying=false,loading=false,retryTimer=null,disposed=false;
- const hash=s=>JSON.stringify({stops:s.stops.map(p=>({id:p.id,address:p.address,lat:p.lat,lon:p.lon,done:p.done,recipient:p.recipient||'',notes:p.notes||'',...(p.shortAddress?{shortAddress:p.shortAddress}:{}),...(p.resolvedAddress?{resolvedAddress:p.resolvedAddress}:{}),...(p.heightVerified!==undefined?{heightVerified:p.heightVerified}:{}),...(p.returnPoint?{returnPoint:true}:{})})),roundTrip:s.roundTrip,manualOrder:s.manualOrder});
+ const hash=s=>JSON.stringify({stops:s.stops.map(p=>({id:p.id,address:p.address,lat:p.lat,lon:p.lon,done:p.done,recipient:p.recipient||'',notes:p.notes||'',...(p.shortAddress?{shortAddress:p.shortAddress}:{}),...(p.resolvedAddress?{resolvedAddress:p.resolvedAddress}:{}),...(p.heightVerified!==undefined?{heightVerified:p.heightVerified}:{}),...(p.manualPoint?{manualPoint:true}:{}),...(p.returnPoint?{returnPoint:true}:{})})),roundTrip:s.roundTrip,manualOrder:s.manualOrder});
  try{const meta=JSON.parse(localStorage.getItem(storageKey)||'{}');revision=meta.revision||0;synced=meta.synced||'';dirty=meta.dirty===true||(!!synced&&hash(getSnapshot())!==synced)||(!synced&&getSnapshot().stops.length>0);}catch{dirty=getSnapshot().stops.length>0;}
  const snapshotOf=route=>({stops:route.stops,roundTrip:route.round_trip,manualOrder:route.manual_order});
  const status=text=>$('cloud-status').textContent=text;
