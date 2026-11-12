@@ -25,7 +25,7 @@ test('envía el máximo compatible y repone pendientes sin repetir entregadas',(
 test('Maps recibe origen explícito, destino y las paradas intermedias',()=>{
  const origin={lat:-34.5719394,lon:-58.6028684},stops=[{lat:-34.58,lon:-58.61},{lat:-34.59,lon:-58.62}];
  const url=new URL(navigationPlan(stops,'maps',{origin}).url);
- assert.equal(url.searchParams.get('origin'),'-34.5719394,-58.6028684');assert.equal(url.searchParams.get('destination'),'-34.59,-58.62');assert.equal(url.searchParams.get('waypoints'),'-34.58,-58.61');assert.equal(url.searchParams.get('dir_action'),'navigate');
+ assert.equal(url.searchParams.get('origin'),'-34.5719394,-58.6028684');assert.equal(url.searchParams.get('destination'),'-34.59,-58.62');assert.equal(url.searchParams.get('waypoints'),'-34.58,-58.61');assert.equal(url.searchParams.has('dir_action'),false);
 });
 test('Maps recibe la altura escrita y no la coordenada aproximada de la calle',()=>{
  const stops=[{lat:-34.60,lon:-58.40,address:'Calle Falsa 1234, CABA',heightVerified:false},{lat:-34.61,lon:-58.41,address:'Avenida Ejemplo 55, CABA',heightVerified:true}];

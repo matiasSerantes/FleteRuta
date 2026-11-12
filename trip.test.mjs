@@ -43,10 +43,11 @@ test('envía diez pendientes a Google Maps y ofrece bloques de cuatro para naveg
  const navigator={userAgent:'Android',geolocation:{watchPosition:success=>{callback=success;return 1;},clearWatch(){}}};
  for(const [key,value] of Object.entries({window,document,navigator,localStorage:window.localStorage}))Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});
  let stops=Array.from({length:10},(_,i)=>({id:String(i),lat:-34.6-i/100,lon:-58.4,address:'Entrega '+i,heightVerified:true,done:false}));
+ window.localStorage.setItem('fleteruta-navigator','waze');
  const $=id=>document.getElementById(id),destinations=element=>{const url=new URL(element.href);return [...(url.searchParams.get('waypoints')||'').split('|').filter(Boolean),url.searchParams.get('destination')];};
  trip=mountTrip({getStops:()=>stops,getOrigin:()=>({lat:-34.5,lon:-58.3}),onStart(){},onComplete(id){stops.find(s=>s.id===id).done=true;trip.sync();},message(){}});
  try{
-  assert.deepEqual(destinations($('trip-go')),stops.map(s=>s.address));assert.match($('trip-go').textContent,/10 paradas/);
+  assert.equal($('navigator-app').value,'maps');assert.deepEqual(destinations($('trip-go')),stops.map(s=>s.address));assert.match($('trip-go').textContent,/10 paradas/);assert.equal(new URL($('trip-go').href).searchParams.has('dir_action'),false);
   assert.equal(new URL($('trip-go').href).searchParams.get('waypoints').split('|').length,9);
   $('maps-browser-mode').click();assert.deepEqual(destinations($('trip-go')),stops.slice(0,4).map(s=>s.address));assert.match($('navigation-hint').textContent,/Quedan 6/);
   $('maps-browser-mode').click();assert.deepEqual(destinations($('trip-go')),stops.map(s=>s.address));
@@ -55,7 +56,7 @@ test('envía diez pendientes a Google Maps y ofrece bloques de cuatro para naveg
   trip.resume();const target=stops.find(s=>!s.done),now=Date.now();for(const timestamp of [now-9000,now])callback({timestamp,coords:{latitude:target.lat,longitude:target.lon,accuracy:10,speed:0}});
   assert.equal($('arrival-dialog').open,true);const expected=stops.filter(s=>!s.done&&s.id!==target.id).map(s=>s.address);assert.deepEqual(destinations($('arrival-yes')),expected);
   $('arrival-yes').onclick(new window.MouseEvent('click',{cancelable:true}));assert.equal(target.done,true);assert.deepEqual(destinations($('trip-go')),expected);
-  $('navigator-app').value='waze';$('navigator-app').dispatchEvent(new window.Event('change'));assert.match($('trip-go').href,/waze.com/);assert.match($('navigation-hint').textContent,/Waze acepta un destino/);
+  $('navigator-app').value='waze';$('navigator-app').dispatchEvent(new window.Event('change'));assert.match($('trip-go').href,/waze.com/);assert.match($('navigation-hint').textContent,/Waze solo abre una parada/);
   stops.forEach(s=>s.done=true);trip.sync();assert.equal($('trip-go').hidden,true);assert.equal($('trip-go').hasAttribute('href'),false);
  }finally{trip.stop();window.close();}
 });

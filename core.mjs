@@ -30,7 +30,7 @@ export function navigationPlan(stops,app='maps',{returnPoint=null,limit=4,origin
  return {url,sent,remaining,pending:pending.length,total:destinations.length};
 }
 export function navigationDestination(stop){return !stop.returnPoint&&typeof stop.address==='string'&&stop.address.trim()?stop.address.trim():`${stop.lat},${stop.lon}`;}
-export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');url.searchParams.set('dir_action','navigate');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);url.searchParams.set('destination',navigationDestination(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(navigationDestination).join('|'));return url.href;}
+export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);url.searchParams.set('destination',navigationDestination(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(navigationDestination).join('|'));return url.href;}
 export function wazeURL(stop){const url=new URL('https://waze.com/ul');if(stop.heightVerified===true||stop.returnPoint||!stop.address)url.searchParams.set('ll',`${stop.lat},${stop.lon}`);else url.searchParams.set('q',stop.address);url.searchParams.set('navigate','yes');return url.href;}
 export function houseNumberMatches(query,result){const number=String(query).match(/\b\d{1,5}\b/)?.[0];return !!number&&String(result?.address?.house_number||'').trim()===number;}
 export function recoverRouteQueries(stops,cache){

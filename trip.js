@@ -4,7 +4,7 @@ import {createArrivalDetector} from './planner.mjs';
 export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  const $=id=>document.getElementById(id),detector=createArrivalDetector();
  let active=false,watch=null,poll=null,current=null,lastPosition=null,registration=null,notification=null,base=null,checking=false,arrivalId=null,browserChunks=false;
- try{$('navigator-app').value=localStorage.getItem('fleteruta-navigator')==='waze'?'waze':'maps';}catch{}
+ $('navigator-app').value='maps';
  const next=()=>getStops().find(s=>!s.done);
  const mobile=()=>window.innerWidth<=760||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')||navigator.maxTouchPoints>1;
  function currentOrigin(){
@@ -29,7 +29,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   $('trip-go').setAttribute('aria-label',`Abrir recorrido en ${$('navigator-app').value==='waze'?'Waze':'Google Maps'}`);
   $('maps-browser-mode').hidden=$('navigator-app').value!=='maps'||!mobile()||(plan.total<=4&&!browserChunks);
   $('maps-browser-mode').textContent=browserChunks?'Volver a enviar hasta 10 paradas':'Si Maps muestra solo 4, usar bloques de 4';
-  $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze acepta un destino por enlace.':browserChunks?'Modo navegador: hasta 4 destinos por enlace.':mobile()?'Google Maps app: hasta 10 destinos. Si se abre en navegador móvil, puede mostrar solo 4; usá bloques de 4.':'Google Maps: hasta 10 destinos por enlace.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
+  $('navigation-hint').textContent=!plan.url?'Agregá entregas para abrir el recorrido.':`Se enviarán ${plan.sent.length} de ${plan.total} destinos pendientes, en el orden de la tabla.${plan.remaining?` Quedan ${plan.remaining} para el próximo envío.`:''} ${$('navigator-app').value==='waze'?'Waze solo abre una parada por vez. Elegí Google Maps para enviar varias.':browserChunks?'Modo navegador: hasta 4 destinos por enlace.':mobile()?'Google Maps app: hasta 10 destinos. Si se abre en navegador móvil, puede mostrar solo 4; usá bloques de 4.':'Google Maps: hasta 10 destinos por enlace.'} Al completar entregas en FleteRuta, el botón enviará solo lo que falte.`;
   if(active&&!target)stop('Reparto completado. Seguimiento detenido.');
  }
  function stop(text='Seguimiento detenido. Podés volver a iniciarlo.'){
@@ -84,7 +84,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   const plan=planFor();if(plan.url)$('trip-go').href=plan.url;else event.preventDefault();
  };
  $('trip-stop').onclick=()=>stop();
- $('navigator-app').onchange=()=>{try{localStorage.setItem('fleteruta-navigator',$('navigator-app').value);}catch{}sync();if(arrivalId){const target=next();if(target)showArrival(target);}};
+ $('navigator-app').onchange=()=>{sync();if(arrivalId){const target=next();if(target)showArrival(target);}};
  $('maps-browser-mode').onclick=()=>{browserChunks=!browserChunks;sync();message(browserChunks?'Modo navegador activado: se abrirán hasta 4 paradas por vez.':'Se enviarán hasta 10 paradas a Google Maps.');};
  $('arrival-no').onclick=()=>{detector.snooze();closeArrival();$('trip-status').textContent='Entrega pendiente. Volveremos a avisar después de un minuto si seguís cerca.';};
  $('arrival-dialog').addEventListener('cancel',e=>{e.preventDefault();$('arrival-no').click();});
