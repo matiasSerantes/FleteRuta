@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {optimize,routeCost,blocks,mapsURL,navigationPlan,shortAddress,addressSearch,localAddressResults,BUENOS_AIRES} from './core.mjs';
+import {optimize,routeCost,blocks,mapsURL,navigationPlan,shortAddress,addressSearch,localAddressResults,BUENOS_AIRES,houseNumberMatches,recoverRouteQueries} from './core.mjs';
 test('direcciones compactas conservan calle y altura sin inventar barrio ni puerta',()=>{
  assert.equal(shortAddress({address:'Farmacia JKS, 602, Avenida Ángel Torcuato de Alvear, Don Torcuato, Partido de Tigre, Argentina'}),'Avenida Ángel Torcuato de Alvear 602');
  assert.equal(shortAddress({address:'UNSAM, 79 - 25 de Mayo, Villa Progreso, Buenos Aires, Argentina'}),'79 - 25 de Mayo');
@@ -26,6 +26,28 @@ test('Maps recibe origen explícito, destino y las paradas intermedias',()=>{
  const origin={lat:-34.5719394,lon:-58.6028684},stops=[{lat:-34.58,lon:-58.61},{lat:-34.59,lon:-58.62}];
  const url=new URL(navigationPlan(stops,'maps',{origin}).url);
  assert.equal(url.searchParams.get('origin'),'-34.5719394,-58.6028684');assert.equal(url.searchParams.get('destination'),'-34.59,-58.62');assert.equal(url.searchParams.get('waypoints'),'-34.58,-58.61');assert.equal(url.searchParams.get('dir_action'),'navigate');
+});
+test('Maps recibe la altura escrita y no la coordenada aproximada de la calle',()=>{
+ const stops=[{lat:-34.60,lon:-58.40,address:'Calle Falsa 1234, CABA',heightVerified:false},{lat:-34.61,lon:-58.41,address:'Avenida Ejemplo 55, CABA',heightVerified:true}];
+ const url=new URL(mapsURL(stops,{lat:-34.5,lon:-58.3}));
+ assert.equal(url.searchParams.get('waypoints'),'Calle Falsa 1234, CABA');
+ assert.equal(url.searchParams.get('destination'),'Avenida Ejemplo 55, CABA');
+ assert.equal(url.searchParams.get('origin'),'-34.5,-58.3');
+ assert.equal(houseNumberMatches('Calle Falsa 1234, CABA',{address:{road:'Calle Falsa'}}),false);
+ assert.equal(houseNumberMatches('Calle Falsa 1234, CABA',{address:{road:'Calle Falsa',house_number:'1234'}}),true);
+});
+test('recupera la altura original de paradas antiguas cuando existe en el caché local',()=>{
+ const result={display_name:'Calle Falsa, CABA',lat:'-34.6',lon:'-58.4',address:{country_code:'ar',road:'Calle Falsa'}};
+ const key='address-local-v1:'+addressSearch('Calle Falsa 1234, CABA',BUENOS_AIRES).url.href;
+ const recovered=recoverRouteQueries([{id:'1',address:result.display_name,lat:-34.6,lon:-58.4,done:false}],{[key]:[result]});
+ assert.equal(recovered[0].address,'Calle Falsa 1234, CABA');assert.equal(recovered[0].heightVerified,false);
+ assert.equal(recovered[0].resolvedAddress,'Calle Falsa, CABA');
+});
+test('enlaces largos reducen el bloque sin cortar direcciones',()=>{
+ const stops=Array.from({length:10},(_,i)=>({lat:-34-i/100,lon:-58,address:`Avenida Ejemplo ${100+i}, Barrio de Prueba, Ciudad de Prueba, Provincia de Buenos Aires, Argentina ${'referencia '.repeat(12)}`,done:false}));
+ const plan=navigationPlan(stops,'maps',{limit:10,origin:{lat:-34.5,lon:-58.3}});
+ assert.ok(plan.url.length<=2048);assert.ok(plan.sent.length<10);assert.equal(plan.remaining,10-plan.sent.length);
+ assert.equal(new URL(plan.url).searchParams.get('destination'),plan.sent.at(-1).address.trim());
 });
 test('recorrido abierto y regreso al origen cambian el orden óptimo',()=>{
  const m=[[0,1,2],[10,0,1],[1,10,0]];

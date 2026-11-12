@@ -18,6 +18,9 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
   const target=next(),key=target?`${target.id}:${target.lat}:${target.lon}`:null;
   if(key!==current){current=key;detector.reset();closeArrival();}
   $('trip-target').textContent=target?shortAddress(target):'No quedan entregas pendientes.';
+  const unverified=getStops().filter(s=>!s.done&&!s.returnPoint&&s.heightVerified!==true);
+  $('height-warning').hidden=!unverified.length;
+  $('height-warning').textContent=unverified.length?`⚠ ${unverified.length} ${unverified.length===1?'parada tiene':'paradas tienen'} la altura sin confirmar en el mapa. Revisá la dirección escrita antes de salir; las paradas antiguas pueden apuntar solo a la calle.`:'';
   $('trip-start').hidden=active;$('trip-stop').hidden=!active;
   $('trip-start').textContent=getStops().some(s=>s.done)&&target?'Retomar seguimiento':'Iniciar seguimiento';
   const plan=planFor();$('trip-go').hidden=!plan.url;
@@ -51,6 +54,7 @@ export function mountTrip({getStops,getOrigin,onStart,onComplete,message}){
  }
  function positionReceived(position){
   if(!active)return;lastPosition=position;const target=next();if(!target){sync();return;}
+  if(target.heightVerified!==true&&!target.returnPoint){$('trip-status').textContent='Altura sin confirmar: el aviso automático de llegada está pausado para esta parada. Marcala como entregada al llegar.';return;}
   const result=detector.sample(position,target);
   $('trip-status').textContent=result.poorSignal?'GPS impreciso o antiguo. Esperando una ubicación confiable…':result.arrived?'Llegada detectada. Confirmá si querés continuar.':result.settling?'Estás cerca. Confirmando que llegaste…':`Seguimiento activo · ${Number.isFinite(result.distance)?Math.round(result.distance)+' m hasta la próxima parada':'esperando GPS'}`;
   if(result.arrived)showArrival(target);

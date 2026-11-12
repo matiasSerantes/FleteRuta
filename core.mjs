@@ -23,11 +23,29 @@ export function shortAddress(stop){
 export function navigationPlan(stops,app='maps',{returnPoint=null,limit=4,origin=null}={}){
  const pending=stops.filter(s=>!s.done),destinations=[...pending,...(returnPoint?[returnPoint]:[])];
  const capacity=app==='waze'?1:Math.max(1,Math.min(10,limit));
- const sent=destinations.slice(0,capacity),remaining=destinations.length-sent.length;
- const url=!sent.length?null:app==='waze'?`https://waze.com/ul?ll=${sent[0].lat}%2C${sent[0].lon}&navigate=yes`:mapsURL(sent,origin);
+ const sent=destinations.slice(0,capacity);
+ let url=!sent.length?null:app==='waze'?wazeURL(sent[0]):mapsURL(sent,origin);
+ while(app==='maps'&&url?.length>2048&&sent.length>1){sent.pop();url=mapsURL(sent,origin);}
+ const remaining=destinations.length-sent.length;
  return {url,sent,remaining,pending:pending.length,total:destinations.length};
 }
-export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');url.searchParams.set('dir_action','navigate');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);const coord=p=>`${p.lat},${p.lon}`;url.searchParams.set('destination',coord(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(coord).join('|'));return url.href;}
+export function navigationDestination(stop){return !stop.returnPoint&&typeof stop.address==='string'&&stop.address.trim()?stop.address.trim():`${stop.lat},${stop.lon}`;}
+export function mapsURL(stops,origin){const url=new URL('https://www.google.com/maps/dir/');url.searchParams.set('api','1');url.searchParams.set('travelmode','driving');url.searchParams.set('dir_action','navigate');if(origin)url.searchParams.set('origin',`${origin.lat},${origin.lon}`);url.searchParams.set('destination',navigationDestination(stops.at(-1)));if(stops.length>1)url.searchParams.set('waypoints',stops.slice(0,-1).map(navigationDestination).join('|'));return url.href;}
+export function wazeURL(stop){const url=new URL('https://waze.com/ul');if(stop.heightVerified===true||stop.returnPoint||!stop.address)url.searchParams.set('ll',`${stop.lat},${stop.lon}`);else url.searchParams.set('q',stop.address);url.searchParams.set('navigate','yes');return url.href;}
+export function houseNumberMatches(query,result){const number=String(query).match(/\b\d{1,5}\b/)?.[0];return !!number&&String(result?.address?.house_number||'').trim()===number;}
+export function recoverRouteQueries(stops,cache){
+ const matches=[];for(const [key,results] of Object.entries(cache||{})){
+  if(!key.startsWith('address-local-v1:')||!Array.isArray(results))continue;
+  let query;try{query=new URL(key.slice('address-local-v1:'.length)).searchParams.get('q');}catch{continue;}
+  if(!query)continue;for(const result of results)matches.push({query,result});
+ }
+ return stops.map(stop=>{
+  if(stop.returnPoint||stop.heightVerified!==undefined)return stop;
+  const found=matches.filter(({query,result})=>result?.display_name===stop.address&&Number(result.lat)===stop.lat&&Number(result.lon)===stop.lon&&/\b\d{1,5}\b/.test(query));
+  if(new Set(found.map(match=>match.query)).size!==1)return stop;
+  const {query,result}=found[0];return {...stop,address:query,resolvedAddress:stop.address,heightVerified:houseNumberMatches(query,result),shortAddress:shortAddress({address:query})};
+ });
+}
 export const BUENOS_AIRES={lat:-34.6037,lon:-58.3816};
 export function distanceKm(a,b){const r=Math.PI/180,h=Math.sin((b.lat-a.lat)*r/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin((b.lon-a.lon)*r/2)**2;return 6371*2*Math.asin(Math.sqrt(Math.min(1,h)));}
 export function addressSearch(query,origin,scope='nearby'){

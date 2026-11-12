@@ -55,7 +55,7 @@ test('formulario real agrega filas, reordena tabla y marcadores y recalcula al e
   move(0,'↓').click();assert.deepEqual(rowAddresses(),['Intermedia 1234','Cercana 1234','Lejana 1234']);checkMapNumbers();
   await until(()=>$('route-state').dataset.state==='ready');assert.match($('route-state').textContent,/Orden manual/);assert.equal(matrixCalls,beforeManual);
   assert.equal(JSON.parse(localStorage.getItem('fleteruta-test-v1')).manualOrder,true);
-  const mapsURL=new URL($('trip-go').href);assert.equal(mapsURL.searchParams.get('waypoints').split('|')[0],'-34.6037,'+(-58.3816+.2));
+  const mapsURL=new URL($('trip-go').href);assert.equal(mapsURL.searchParams.get('waypoints').split('|')[0],'Intermedia 1234');
   assert.equal(document.querySelectorAll('#stops .actions a').length,0);
   move(1,'↑').click();assert.deepEqual(rowAddresses(),['Cercana 1234','Intermedia 1234','Lejana 1234']);
   await until(()=>$('route-state').dataset.state==='ready');assert.equal(matrixCalls,beforeManual);

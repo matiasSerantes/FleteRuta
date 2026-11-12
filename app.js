@@ -1,4 +1,4 @@
-import {shortAddress,addressSearch,localAddressResults,distanceKm} from './core.mjs';
+import {shortAddress,addressSearch,localAddressResults,distanceKm,houseNumberMatches,recoverRouteQueries} from './core.mjs';
 import {orderedStops,createRouteQueue} from './planner.mjs';
 import {mountTrip} from './trip.js';
 import {mountCloudStore} from './cloud-sync.js';
@@ -28,7 +28,7 @@ function showView(name,focus=false){
 document.querySelectorAll('[data-view-target]').forEach(button=>button.onclick=()=>showView(button.dataset.viewTarget,true));
 if(boot.username)$('account-email').textContent=boot.username;
 if($('apps-link'))$('apps-link').hidden=boot.backend!=='supabase';
-try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,40);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};}catch{ }
+try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');if(Array.isArray(saved.stops))stops=saved.stops.filter(p=>p&&typeof p.id==='string'&&typeof p.address==='string'&&Number.isFinite(p.lat)&&Math.abs(p.lat)<=90&&Number.isFinite(p.lon)&&Math.abs(p.lon)<=180).slice(0,40);$('return').checked=!!saved.roundTrip;cache=saved.cache||{};stops=recoverRouteQueries(stops,cache);}catch{ }
 function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
 function routeState(text,type=''){$('route-state').textContent=text;$('route-state').dataset.state=type;}
 function searchHint(){$('search-area').textContent=$('search-scope').value==='argentina'?'Buscando solo en Argentina. Resultados ordenados por cercanía.':origin?'Solo Argentina, hasta 100 km de tu ubicación actual.':'Sin GPS: búsqueda en Buenos Aires y alrededores (hasta 100 km de CABA).';}
@@ -57,7 +57,7 @@ function render(){
  $('counter').textContent=`${stops.length} / 40`;$('delivery-count').textContent=`${pending} pendientes · ${stops.length-pending} entregadas`;$('empty').hidden=stops.length>0;$('stops').replaceChildren();
  stops.forEach((s,i)=>{
   const row=node('tr',null,'delivery-row'+(s.done?' done':'')+(s.id===focusedId?' selected':''));row.dataset.id=s.id;
-  const address=node('td',null,'address-cell'),view=button('',()=>{const details=address.querySelector('details');details.open=!details.open;view.setAttribute('aria-expanded',String(details.open));selectStop(s.id);},`Ver dirección completa de parada ${i+1}`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',shortAddress(s),'address-text'));view.setAttribute('aria-expanded','false');const detail=node('details',null,'address-details');detail.append(node('summary','Ver barrio y dirección completa'),node('p',s.address));if(s.recipient)detail.append(node('p','Cliente: '+s.recipient));if(s.notes)detail.append(node('p',s.notes));address.append(view,detail);
+  const address=node('td',null,'address-cell'),view=button('',()=>{const details=address.querySelector('details');details.open=!details.open;view.setAttribute('aria-expanded',String(details.open));selectStop(s.id);},`Ver dirección completa de parada ${i+1}`);view.className='address-button';view.append(node('span',String(i+1),'number'),node('span',shortAddress(s),'address-text'));view.setAttribute('aria-expanded','false');const detail=node('details',null,'address-details');detail.append(node('summary','Ver barrio y dirección completa'),node('p',s.address));if(s.resolvedAddress)detail.append(node('p','Punto encontrado en mapa: '+s.resolvedAddress));if(s.heightVerified!==true&&!s.returnPoint)detail.append(node('p','⚠ Altura sin confirmar: revisá la dirección antes de salir.'));if(s.recipient)detail.append(node('p','Cliente: '+s.recipient));if(s.notes)detail.append(node('p',s.notes));address.append(view,detail);
   const state=node('td');state.append(node('span',s.done?'Entregada':'Pendiente','delivery-status '+(s.done?'is-done':'')));
   const actions=node('td',null,'actions-cell'),group=node('div',null,'actions');
   for(const [delta,label] of [[-1,'↑'],[1,'↓']]){
@@ -133,10 +133,10 @@ $('search-scope').onchange=()=>{$('results').replaceChildren();searchHint();mess
 function addGeocoded(result,query,old=stops.find(s=>s.id===editing)){
  const lat=Number(result.lat),lon=Number(result.lon);if(!Number.isFinite(lat)||Math.abs(lat)>90||!Number.isFinite(lon)||Math.abs(lon)>180)throw Error('La ubicación recibida no es válida.');
  if(!old&&stops.length>=40)throw Error('Llegaste a las 40 entregas.');
- const road=result.address?.road||result.address?.pedestrian||result.address?.residential||'';
- const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:result.display_name,shortAddress:road?[road,result.address.house_number].filter(Boolean).join(' '):shortAddress({address:result.display_name}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
+ const heightVerified=houseNumberMatches(query,result);
+ const item={...(old||{}),id:old?.id||crypto.randomUUID(),lat,lon,address:query,resolvedAddress:result.display_name,heightVerified,shortAddress:shortAddress({address:query}),recipient:$('recipient').value.trim(),notes:$('notes').value.trim(),done:old?.done||false};
  if(old)stops[stops.indexOf(old)]=item;else {const end=stops.findIndex(s=>s.returnPoint&&!s.done);if(end>=0)stops.splice(end,0,item);else stops.push(item);}focusedId=item.id;editing=null;
- $('search-form').reset();$('results').replaceChildren();changed(old?'Dirección corregida. Recorrido actualizado automáticamente.':'Dirección agregada a la tabla y al mapa. El recorrido se acomoda automáticamente.');
+ $('search-form').reset();$('results').replaceChildren();changed(heightVerified?(old?'Dirección corregida con altura confirmada.':'Dirección agregada con altura confirmada.'): 'Dirección agregada, pero la altura no está confirmada en el mapa. Revisá el destino antes de salir.');
  if(!old)addressList?.confirmed(query);
  return item;
 }
@@ -202,7 +202,7 @@ $('search-form').onsubmit=e=>{e.preventDefault();task(async()=>{
   const b=button(result.display_name,()=>task(async()=>{
    if($('address').value.trim()!==queryAtSearch||editing!==editAtSearch||addressSearch(queryAtSearch,origin,$('search-scope').value).key!==search.key)throw Error('La dirección o la zona cambió. Volvé a buscar antes de confirmar.');
    addGeocoded(result,queryAtSearch);
-  }));b.className='result';const km=distanceKm(search.center,{lat:Number(result.lat),lon:Number(result.lon)});b.append(node('span',`${km.toFixed(1)} km ${origin?'de tu ubicación':'de CABA'} · Confirmar esta ubicación`));$('results').append(b);
+  }));b.className='result';const km=distanceKm(search.center,{lat:Number(result.lat),lon:Number(result.lon)}),exact=houseNumberMatches(queryAtSearch,result);b.append(node('span',`${exact?'✓ Altura confirmada':'⚠ Solo calle o altura distinta: el mapa no confirmó el número'} · ${km.toFixed(1)} km ${origin?'de tu ubicación':'de CABA'} · ${exact?'Agregar dirección':'Agregar con advertencia'}`));$('results').append(b);
  });message('Seleccioná la dirección correcta. Al confirmarla se agrega y se ordena sola.');
  });};
 $('return').onchange=()=>changed('Destino final actualizado. Reacomodando las paradas.');
@@ -237,6 +237,6 @@ addressList=mountAddressList({storageKey:KEY+'-address-list',getCapacity:()=>40-
 mountPasswordForm({enabled:boot.backend==='supabase'});
 showView('route');initMap();render();searchHint();if(stops.length)fit();
 cloud=mountCloudStore({enabled:boot.backend==='supabase',storageKey:KEY+'-cloud',getSnapshot:()=>({stops,roundTrip:$('return').checked,manualOrder}),message,
- applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=snapshot.stops;manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}
+ applySnapshot(snapshot){trip.stop('Reparto recuperado. Iniciá el seguimiento para continuar.');queue.cancel();stops=recoverRouteQueries(snapshot.stops,cache);manualOrder=snapshot.manualOrder;$('return').checked=snapshot.roundTrip;editing=null;changed('Reparto cargado en la tabla y en el mapa.');}
 });
 await cloud.initialize();task(async()=>{await locate();trip.resume();});
